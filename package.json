@@ -99,7 +99,7 @@
     "glob": "^11.0.3",
     "is-builtin-module": "^5.0.0",
     "jest": "^30.0.5",
-    "jest-environment-jsdom": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.5",
     "jest-junit": "^16.0.0",
     "jest-monocart-coverage": "^1.1.1",
     "jest-webgl-canvas-mock": "^2.5.3",
