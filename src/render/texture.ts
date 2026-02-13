@@ -1,5 +1,6 @@
 import type {Context} from '../gl/context';
 import type {RGBAImage, AlphaImage} from '../util/image';
+import {premultiplyAlpha} from '../util/image';
 import {isImageBitmap} from '../util/util';
 
 export type TextureFormat = WebGLRenderingContextBase['RGBA'] | WebGLRenderingContextBase['ALPHA'];
@@ -59,23 +60,32 @@ export class Texture {
 
         context.pixelStoreUnpackFlipY.set(false);
         context.pixelStoreUnpack.set(1);
-        context.pixelStoreUnpackPremultiplyAlpha.set(this.format === gl.RGBA && (!options || options.premultiply !== false));
+
+        const isDomSource = image instanceof HTMLImageElement || image instanceof HTMLCanvasElement || image instanceof HTMLVideoElement || image instanceof ImageData || isImageBitmap(image);
+        const wantPremultiply = this.format === gl.RGBA && (!options || options.premultiply !== false);
+
+        // #2030: only use WebGL premultiply for DOM sources; raw data is premultiplied in JS
+        context.pixelStoreUnpackPremultiplyAlpha.set(wantPremultiply && isDomSource);
 
         if (resize) {
             this.size = [width, height];
 
-            if (image instanceof HTMLImageElement || image instanceof HTMLCanvasElement || image instanceof HTMLVideoElement || image instanceof ImageData || isImageBitmap(image)) {
+            if (isDomSource) {
                 gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.format, gl.UNSIGNED_BYTE, image);
             } else {
-                gl.texImage2D(gl.TEXTURE_2D, 0, this.format, width, height, 0, this.format, gl.UNSIGNED_BYTE, (image as DataTextureImage).data);
+                let data = (image as DataTextureImage).data;
+                if (wantPremultiply && data) data = premultiplyAlpha(data);
+                gl.texImage2D(gl.TEXTURE_2D, 0, this.format, width, height, 0, this.format, gl.UNSIGNED_BYTE, data);
             }
 
         } else {
             const {x, y} = position || {x: 0, y: 0};
-            if (image instanceof HTMLImageElement || image instanceof HTMLCanvasElement || image instanceof HTMLVideoElement || image instanceof ImageData || isImageBitmap(image)) {
+            if (isDomSource) {
                 gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, image);
             } else {
-                gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, width, height, gl.RGBA, gl.UNSIGNED_BYTE, (image as DataTextureImage).data);
+                let data = (image as DataTextureImage).data;
+                if (wantPremultiply && data) data = premultiplyAlpha(data);
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
             }
         }
 
