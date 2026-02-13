@@ -92,7 +92,6 @@ export class Texture {
         const {context} = this;
         const {gl} = context;
 
-        // #2811: restore handle if it was corrupted after context loss
         if (this.texture !== this._ownedHandle) {
             this.texture = this._ownedHandle;
         }
