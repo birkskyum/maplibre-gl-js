@@ -677,24 +677,6 @@ async function getImageFromStyle(styleForTest: StyleWithTestData, page: Page): P
                     case 'pauseTiles':
                         map.style.tileManagers[operation[1]].pause();
                         break;
-                    case 'corruptTextures': {
-                        // #2811: simulate texture handle corruption by pointing
-                        // raster tile textures at the glyph atlas handle
-                        const rasterTM = map.style.tileManagers['satellite'];
-                        const labelTM = map.style.tileManagers['labels'];
-                        if (!rasterTM || !labelTM) break;
-                        const rasterTiles = rasterTM.getVisibleCoordinates().map(c => rasterTM.getTile(c));
-                        const labelTiles = labelTM.getVisibleCoordinates().map(c => labelTM.getTile(c));
-                        const glyphTex = labelTiles.find(t => t.glyphAtlasTexture)?.glyphAtlasTexture;
-                        if (!glyphTex) break;
-                        for (const tile of rasterTiles) {
-                            if (tile.texture) {
-                                tile.texture.texture = glyphTex.texture;
-                            }
-                        }
-                        map._render();
-                        break;
-                    }
                     default:
                         if (typeof map[operation[0]] === 'function') {
                             map[operation[0]](...operation.slice(1));
