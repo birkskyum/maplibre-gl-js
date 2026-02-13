@@ -4,6 +4,7 @@
 
 ### 🐞 Bug fixes
 - _...Add new stuff here..._
+- Fix raster tiles rendering with glyph/icon atlas content after WebGL context loss ([#2811](https://github.com/maplibre/maplibre-gl-js/issues/2811)) (by [@birkskyum](https://github.com/birkskyum))
 
 ## 5.18.0
 
