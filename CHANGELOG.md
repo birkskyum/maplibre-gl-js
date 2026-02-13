@@ -4,7 +4,7 @@
 
 ### 🐞 Bug fixes
 - _...Add new stuff here..._
-- Fix Firefox "Alpha-premult deprecated for non-DOM uploads" warning ([#2030](https://github.com/maplibre/maplibre-gl-js/issues/2030)) (by [@birkskyum](https://github.com/birkskyum))
+- Fix Firefox "Alpha-premult deprecated for non-DOM uploads" warning ([#7128](https://github.com/maplibre/maplibre-gl-js/pull/7128)) (by [@birkskyum](https://github.com/birkskyum))
 - Fix raster tiles rendering with glyph/icon atlas content after WebGL context loss ([#7126](https://github.com/maplibre/maplibre-gl-js/pull/7126)) (by [@birkskyum](https://github.com/birkskyum))
 
 ## 5.18.0
