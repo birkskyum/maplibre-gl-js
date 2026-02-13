@@ -1,0 +1,85 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "Bug #2811: After WebGL context loss and restore, raster tiles should render correctly and not show glyph atlas or icon atlas textures.",
+      "width": 256,
+      "height": 256,
+      "timeout": 60000,
+      "operations": [
+        ["wait"],
+        ["corruptTextures"]
+      ]
+    }
+  },
+  "center": [13.418056, 52.499167],
+  "zoom": 16,
+  "sources": {
+    "satellite": {
+      "type": "raster",
+      "tiles": [
+        "local://tiles/{z}-{x}-{y}.satellite.png"
+      ],
+      "maxzoom": 17,
+      "tileSize": 256
+    },
+    "labels": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": { "name": "Berlin" },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [13.418056, 52.499167]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": { "name": "Mitte" },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [13.415, 52.501]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": { "name": "ABCDEF" },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [13.421, 52.497]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "glyphs": "local://glyphs/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "raster",
+      "type": "raster",
+      "source": "satellite",
+      "paint": {
+        "raster-fade-duration": 0
+      }
+    },
+    {
+      "id": "text-labels",
+      "type": "symbol",
+      "source": "labels",
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+        "text-size": 16
+      },
+      "paint": {
+        "text-color": "#ffffff",
+        "text-halo-color": "#000000",
+        "text-halo-width": 1
+      }
+    }
+  ]
+}

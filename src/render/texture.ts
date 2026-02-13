@@ -28,6 +28,9 @@ export class Texture {
     wrap: TextureWrap;
     useMipmap: boolean;
 
+    /** Tracks the original handle to detect corruption after context loss (#2811) */
+    private _ownedHandle: WebGLTexture;
+
     constructor(context: Context, image: TextureImage, format: TextureFormat, options?: {
         premultiply?: boolean;
         useMipmap?: boolean;
@@ -35,6 +38,7 @@ export class Texture {
         this.context = context;
         this.format = format;
         this.texture = context.gl.createTexture();
+        this._ownedHandle = this.texture;
         this.update(image, options);
     }
 
@@ -87,6 +91,12 @@ export class Texture {
     bind(filter: TextureFilter, wrap: TextureWrap, minFilter?: TextureFilter | null) {
         const {context} = this;
         const {gl} = context;
+
+        // #2811: restore handle if it was corrupted after context loss
+        if (this.texture !== this._ownedHandle) {
+            this.texture = this._ownedHandle;
+        }
+
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
         if (minFilter === gl.LINEAR_MIPMAP_NEAREST && !this.isSizePowerOfTwo()) {
@@ -114,5 +124,6 @@ export class Texture {
         const {gl} = this.context;
         gl.deleteTexture(this.texture);
         this.texture = null;
+        this._ownedHandle = null;
     }
 }
