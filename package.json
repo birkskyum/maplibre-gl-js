@@ -100,7 +100,7 @@
     "is-builtin-module": "^5.0.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
-    "jest-junit": "^16.0.0",
+    "jest-junit": "^17.0.0",
     "jest-monocart-coverage": "^1.1.1",
     "jest-webgl-canvas-mock": "^2.5.3",
     "jsdom": "^29.1.1",
