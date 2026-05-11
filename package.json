@@ -98,7 +98,7 @@
     "expect": "^30.4.1",
     "glob": "^13.0.6",
     "is-builtin-module": "^5.0.0",
-    "jest": "^30.4.0",
+    "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "jest-junit": "^17.0.0",
     "jest-monocart-coverage": "^1.1.1",
