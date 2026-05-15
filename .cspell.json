@@ -186,6 +186,7 @@
     "SRPS",
     "stringifiable",
     "Struct",
+    "Styl",
     "tada",
     "Tatra",
     "tcpopup",
@@ -263,11 +264,6 @@
   "files": [
     "**/*.html",
     "**/*.md"
-  ],
-  "ignorePaths": [
-    "site/**",
-    "coverage/**",
-    "test/integration/render/results.html"
   ],
   "ignoreRegExpList": [
     "@\\w+",
