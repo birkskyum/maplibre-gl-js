@@ -93,7 +93,7 @@ function renderColorRelief(
             demTexture.update(pixelData, {premultiply: false});
             demTexture.bind(textureFilter, gl.CLAMP_TO_EDGE);
         } else {
-            tile.demTexture = new Texture(context, pixelData, gl.RGBA, {premultiply: false, immutable: true});
+            tile.demTexture = new Texture(context, pixelData, gl.RGBA, {premultiply: false});
             tile.demTexture.bind(textureFilter, gl.CLAMP_TO_EDGE);
         }
 

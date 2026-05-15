@@ -31,7 +31,6 @@ export class Texture {
     filter: TextureFilter;
     wrap: TextureWrap;
     useMipmap: boolean;
-    immutable: boolean;
 
     /** Tracks the original handle to detect corruption after context loss (#2811) */
     private _ownedHandle: WebGLTexture;
@@ -39,11 +38,9 @@ export class Texture {
     constructor(context: Context, image: TextureImage, format: TextureFormat, options?: {
         premultiply?: boolean;
         useMipmap?: boolean;
-        immutable?: boolean;
     } | null) {
         this.context = context;
         this.format = format;
-        this.immutable = Boolean(options?.immutable) && format !== context.gl.ALPHA;
         this.texture = context.gl.createTexture();
         this._ownedHandle = this.texture;
         this.update(image, options);
@@ -63,7 +60,7 @@ export class Texture {
 
         this.useMipmap = Boolean(options?.useMipmap);
 
-        if (this.immutable && resize && this.size) {
+        if (resize && this.size && this.format === gl.RGBA) {
             gl.deleteTexture(this.texture);
             this.texture = gl.createTexture();
             this._ownedHandle = this.texture;
@@ -79,7 +76,7 @@ export class Texture {
         if (resize) {
             this.size = [width, height];
 
-            if (this.immutable) {
+            if (this.format === gl.RGBA) {
                 const mipLevels = this.useMipmap ? Math.floor(Math.log2(Math.max(width, height))) + 1 : 1;
                 gl.texStorage2D(gl.TEXTURE_2D, mipLevels, gl.RGBA8, width, height);
 

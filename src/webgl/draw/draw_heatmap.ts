@@ -226,6 +226,6 @@ function createHeatmapFbo(context: Context, width: number, height: number): Fram
 }
 
 function getColorRampTexture(context: Context, layer: HeatmapStyleLayer): Texture {
-    layer.colorRampTexture ||= new Texture(context, layer.colorRamp, context.gl.RGBA, {immutable: true});
+    layer.colorRampTexture ||= new Texture(context, layer.colorRamp, context.gl.RGBA);
     return layer.colorRampTexture;
 }

@@ -272,9 +272,9 @@ export class Terrain {
         if (!this._emptyDemTexture) {
             const context = this.painter.context;
             const image = new RGBAImage({width: 1, height: 1}, new Uint8Array(1 * 4));
-            this._emptyDepthTexture = new Texture(context, image, context.gl.RGBA, {premultiply: false, immutable: true});
+            this._emptyDepthTexture = new Texture(context, image, context.gl.RGBA, {premultiply: false});
             this._emptyDemUnpack = [0, 0, 0, 0];
-            this._emptyDemTexture = new Texture(context, new RGBAImage({width: 1, height: 1}), context.gl.RGBA, {premultiply: false, immutable: true});
+            this._emptyDemTexture = new Texture(context, new RGBAImage({width: 1, height: 1}), context.gl.RGBA, {premultiply: false});
             this._emptyDemTexture.bind(context.gl.NEAREST, context.gl.CLAMP_TO_EDGE);
             this._emptyDemMatrix = mat4.identity([]);
         }
@@ -284,7 +284,7 @@ export class Terrain {
             const context = this.painter.context;
             sourceTile.demTexture = this.painter.getTileTexture(sourceTile.dem.stride);
             if (sourceTile.demTexture) sourceTile.demTexture.update(sourceTile.dem.getPixels(), {premultiply: false});
-            else sourceTile.demTexture = new Texture(context, sourceTile.dem.getPixels(), context.gl.RGBA, {premultiply: false, immutable: true});
+            else sourceTile.demTexture = new Texture(context, sourceTile.dem.getPixels(), context.gl.RGBA, {premultiply: false});
             sourceTile.demTexture.bind(context.gl.NEAREST, context.gl.CLAMP_TO_EDGE);
             sourceTile.needsTerrainPrepare = false;
         }
@@ -335,11 +335,11 @@ export class Terrain {
             delete this._fboCoordsTexture;
         }
         if (!this._fboCoordsTexture) {
-            this._fboCoordsTexture = new Texture(painter.context, {width, height, data: null}, painter.context.gl.RGBA, {premultiply: false, immutable: true});
+            this._fboCoordsTexture = new Texture(painter.context, {width, height, data: null}, painter.context.gl.RGBA, {premultiply: false});
             this._fboCoordsTexture.bind(painter.context.gl.NEAREST, painter.context.gl.CLAMP_TO_EDGE);
         }
         if (!this._fboDepthTexture) {
-            this._fboDepthTexture = new Texture(painter.context, {width, height, data: null}, painter.context.gl.RGBA, {premultiply: false, immutable: true});
+            this._fboDepthTexture = new Texture(painter.context, {width, height, data: null}, painter.context.gl.RGBA, {premultiply: false});
             this._fboDepthTexture.bind(painter.context.gl.NEAREST, painter.context.gl.CLAMP_TO_EDGE);
         }
         if (!this._fbo) {
@@ -371,7 +371,7 @@ export class Terrain {
             data[i + 3] = 0;
         }
         const image = new RGBAImage({width: this._coordsTextureSize, height: this._coordsTextureSize}, new Uint8Array(data.buffer));
-        const texture = new Texture(context, image, context.gl.RGBA, {premultiply: false, immutable: true});
+        const texture = new Texture(context, image, context.gl.RGBA, {premultiply: false});
         texture.bind(context.gl.NEAREST, context.gl.CLAMP_TO_EDGE);
         this._coordsTexture = texture;
         return texture;
