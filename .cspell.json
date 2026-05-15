@@ -264,6 +264,11 @@
     "**/*.html",
     "**/*.md"
   ],
+  "ignorePaths": [
+    "site/**",
+    "coverage/**",
+    "test/integration/render/results.html"
+  ],
   "ignoreRegExpList": [
     "@\\w+",
     "\\[\\w+",
