@@ -81,6 +81,7 @@ export class Texture {
                 gl.texStorage2D(gl.TEXTURE_2D, mipLevels, gl.RGBA8, width, height);
 
                 if (hasDataProperty(image)) {
+                    // #2030: raw data is premultiplied in JS
                     context.pixelStoreUnpackPremultiplyAlpha.set(false);
                     let {data} = image;
                     if (wantPremultiply && data) data = premultiplyAlpha(data);
@@ -91,6 +92,7 @@ export class Texture {
                 }
             } else {
                 if (hasDataProperty(image)) {
+                    // #2030: raw data is premultiplied in JS
                     context.pixelStoreUnpackPremultiplyAlpha.set(false);
                     this._uploadRawData(image, wantPremultiply, width, height, gl);
                 } else {
