@@ -126,6 +126,10 @@ export class Texture {
 
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
+        if (minFilter === gl.LINEAR_MIPMAP_NEAREST && !this.useMipmap) {
+            minFilter = gl.LINEAR;
+        }
+
         if (filter !== this.filter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter || filter);
