@@ -91,8 +91,8 @@ export class ColorReliefStyleLayer extends StyleLayer {
             colorImage.setPixel(0, i, colorRamp.colorStops[i]);
         }
         this.colorRampTextures = {
-            elevationTexture: new Texture(context, elevationImage, context.gl.RGBA),
-            colorTexture: new Texture(context, colorImage, context.gl.RGBA)
+            elevationTexture: new Texture(context, elevationImage, context.gl.RGBA, {immutable: true}),
+            colorTexture: new Texture(context, colorImage, context.gl.RGBA, {immutable: true})
         };
         return this.colorRampTextures;
     }

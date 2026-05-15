@@ -130,7 +130,7 @@ function prepareHillshade(
             demTexture.update(pixelData, {premultiply: false});
             demTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
         } else {
-            tile.demTexture = new Texture(context, pixelData, gl.RGBA, {premultiply: false});
+            tile.demTexture = new Texture(context, pixelData, gl.RGBA, {premultiply: false, immutable: true});
             tile.demTexture.bind(gl.NEAREST, gl.CLAMP_TO_EDGE);
         }
 
@@ -139,7 +139,7 @@ function prepareHillshade(
         let fbo = tile.fbo;
 
         if (!fbo) {
-            const renderTexture = new Texture(context, {width: tileSize, height: tileSize, data: null}, gl.RGBA);
+            const renderTexture = new Texture(context, {width: tileSize, height: tileSize, data: null}, gl.RGBA, {immutable: true});
             renderTexture.bind(textureFilter, gl.CLAMP_TO_EDGE);
 
             fbo = tile.fbo = context.createFramebuffer(tileSize, tileSize, true, false);

@@ -842,7 +842,7 @@ export class Painter {
             this.debugOverlayCanvas.width = 512;
             this.debugOverlayCanvas.height = 512;
             const gl = this.context.gl;
-            this.debugOverlayTexture = new Texture(this.context, this.debugOverlayCanvas, gl.RGBA);
+            this.debugOverlayTexture = new Texture(this.context, this.debugOverlayCanvas, gl.RGBA, {immutable: true});
         }
     }
 

@@ -31,6 +31,7 @@ export class Texture {
     filter: TextureFilter;
     wrap: TextureWrap;
     useMipmap: boolean;
+    immutable: boolean;
 
     /** Tracks the original handle to detect corruption after context loss (#2811) */
     private _ownedHandle: WebGLTexture;
@@ -38,9 +39,11 @@ export class Texture {
     constructor(context: Context, image: TextureImage, format: TextureFormat, options?: {
         premultiply?: boolean;
         useMipmap?: boolean;
+        immutable?: boolean;
     } | null) {
         this.context = context;
         this.format = format;
+        this.immutable = Boolean(options?.immutable) && format !== context.gl.ALPHA;
         this.texture = context.gl.createTexture();
         this._ownedHandle = this.texture;
         this.update(image, options);
@@ -59,6 +62,13 @@ export class Texture {
         const {gl} = context;
 
         this.useMipmap = Boolean(options?.useMipmap);
+
+        if (this.immutable && resize && this.size) {
+            gl.deleteTexture(this.texture);
+            this.texture = gl.createTexture();
+            this._ownedHandle = this.texture;
+        }
+
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
         context.pixelStoreUnpackFlipY.set(false);
@@ -68,13 +78,28 @@ export class Texture {
 
         if (resize) {
             this.size = [width, height];
-            if (hasDataProperty(image)) {
-                // #2030: raw data is premultiplied in JS
-                context.pixelStoreUnpackPremultiplyAlpha.set(false);
-                this._uploadRawData(image, wantPremultiply, width, height, gl);
+
+            if (this.immutable) {
+                const mipLevels = this.useMipmap ? Math.floor(Math.log2(Math.max(width, height))) + 1 : 1;
+                gl.texStorage2D(gl.TEXTURE_2D, mipLevels, gl.RGBA8, width, height);
+
+                if (hasDataProperty(image)) {
+                    context.pixelStoreUnpackPremultiplyAlpha.set(false);
+                    let {data} = image;
+                    if (wantPremultiply && data) data = premultiplyAlpha(data);
+                    if (data) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+                } else {
+                    context.pixelStoreUnpackPremultiplyAlpha.set(wantPremultiply);
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image);
+                }
             } else {
-                context.pixelStoreUnpackPremultiplyAlpha.set(wantPremultiply);
-                this._uploadDomImage(image, gl);
+                if (hasDataProperty(image)) {
+                    context.pixelStoreUnpackPremultiplyAlpha.set(false);
+                    this._uploadRawData(image, wantPremultiply, width, height, gl);
+                } else {
+                    context.pixelStoreUnpackPremultiplyAlpha.set(wantPremultiply);
+                    this._uploadDomImage(image, gl);
+                }
             }
         } else {
             const {x, y} = position || {x: 0, y: 0};
