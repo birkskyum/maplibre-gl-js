@@ -76,7 +76,7 @@ export class Texture {
         if (resize) {
             this.size = [width, height];
 
-            if (this.format === gl.RGBA) {
+            if (this.format === gl.RGBA && width > 0 && height > 0) {
                 const mipLevels = this.useMipmap ? Math.floor(Math.log2(Math.max(width, height))) + 1 : 1;
                 gl.texStorage2D(gl.TEXTURE_2D, mipLevels, gl.RGBA8, width, height);
 
