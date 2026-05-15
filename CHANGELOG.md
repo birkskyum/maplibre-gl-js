@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Enable mipmaps for non-power-of-two raster tiles, reducing aliasing at high pitch ([#7641](https://github.com/maplibre/maplibre-gl-js/pull/7641)) (by [@birkskyum](https://github.com/birkskyum))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
