@@ -111,7 +111,7 @@ export class Texture {
             }
         }
 
-        if (this.useMipmap && this.isSizePowerOfTwo()) {
+        if (this.useMipmap) {
             gl.generateMipmap(gl.TEXTURE_2D);
         }
 
@@ -150,7 +150,7 @@ export class Texture {
 
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
-        if (minFilter === gl.LINEAR_MIPMAP_NEAREST && !this.isSizePowerOfTwo()) {
+        if (minFilter === gl.LINEAR_MIPMAP_NEAREST && !this.useMipmap) {
             minFilter = gl.LINEAR;
         }
 
@@ -165,10 +165,6 @@ export class Texture {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
             this.wrap = wrap;
         }
-    }
-
-    isSizePowerOfTwo(): boolean {
-        return this.size[0] === this.size[1] && (Math.log(this.size[0]) / Math.LN2) % 1 === 0;
     }
 
     destroy(): void {
