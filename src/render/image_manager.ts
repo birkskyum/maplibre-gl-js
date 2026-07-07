@@ -230,7 +230,7 @@ export class ImageManager extends Evented {
 
     async _getImagesForIds(ids: string[]): Promise<GetImagesResponse> {
         const missingIds = new Set(ids.filter((id) => !this.getImage(id)));
-        await this._resolveMissingImageIds(missingIds);
+        await Promise.all(Array.from(missingIds, (id) => this._resolveMissingImageId(id)));
 
         const response: GetImagesResponse = {};
 
@@ -251,15 +251,11 @@ export class ImageManager extends Evented {
                     textFitHeight: image.textFitHeight,
                     hasRenderCallback: Boolean(image.userImage?.render)
                 };
-            } else if (!image) {
+            } else {
                 warnOnce(`Image "${id}" could not be loaded. Please make sure you have added the image before it is needed with map.addImage(), resolved it with map.setMissingStyleImageResolver(), or included it in a "sprite" property in your style.`);
             }
         }
         return response;
-    }
-
-    async _resolveMissingImageIds(ids: Set<string>): Promise<void> {
-        await Promise.all(Array.from(ids, (id) => this._resolveMissingImageId(id)));
     }
 
     async _resolveMissingImageId(id: string): Promise<void> {
