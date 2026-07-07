@@ -2674,26 +2674,14 @@ export class Map extends Camera {
 
         const style = this.style;
         style.setMissingImageResolver(async (id) => {
-            if (style.getImage(id)) {
-                return;
-            }
-
             const result = await resolver(id);
-            if (!result || this.style !== style || style.getImage(id)) {
+            if (!result || this.style !== style) {
                 return;
             }
 
             const image = typeof result === 'object' && 'image' in result ? result.image : result;
             const options = result as Partial<StyleImageMetadata>;
-            const styleImage = this._createStyleImage(image, options);
-            if (!styleImage || style.getImage(id)) {
-                return;
-            }
-
-            style.addImage(id, styleImage);
-            if (styleImage.userImage?.onAdd) {
-                styleImage.userImage.onAdd(this, id);
-            }
+            return this._createStyleImage(image, options);
         });
     }
 

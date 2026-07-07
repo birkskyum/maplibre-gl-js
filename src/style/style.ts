@@ -4,7 +4,7 @@ import {MapSourceDataEvent, MapStyleDataEvent, MapStyleLoadEvent, type MapEventT
 import {isRasterStyleLayer} from './style_layer/raster_style_layer.ts';
 import {createStyleLayer} from './create_style_layer.ts';
 import {loadSprite} from './load_sprite.ts';
-import {ImageManager, type MissingImageRequestHandler} from '../render/image_manager.ts';
+import {ImageManager} from '../render/image_manager.ts';
 import {GlyphManager} from '../render/glyph_manager.ts';
 import {Light} from './light.ts';
 import {Sky} from './sky.ts';
@@ -81,6 +81,13 @@ import {createProjectionFromName} from '../geo/projection/projection_factory.ts'
 import type {OverscaledTileID} from '../tile/tile_id.ts';
 
 const empty = emptyStyle();
+
+/**
+ * A callback that resolves a missing style image to a {@link StyleImage}, or returns
+ * a nullish value to fall back to the `styleimagemissing` event.
+ */
+export type MissingImageResolver = (id: string) => StyleImage | null | undefined | Promise<StyleImage | null | undefined>;
+
 /**
  * A feature identifier that is bound to a source
  */
@@ -999,8 +1006,21 @@ export class Style extends Evented<MapEventType> {
         return this.imageManager.getImage(id);
     }
 
-    setMissingImageResolver(resolver: MissingImageRequestHandler | null): void {
-        this.imageManager.setMissingImageResolver(resolver);
+    setMissingImageResolver(resolver: MissingImageResolver | null): void {
+        if (!resolver) {
+            this.imageManager.setMissingImageResolver(null);
+            return;
+        }
+
+        this.imageManager.setMissingImageResolver(async (id) => {
+            const image = await resolver(id);
+            if (!image || this.getImage(id)) return;
+
+            this.addImage(id, image);
+            if (image.userImage?.onAdd) {
+                image.userImage.onAdd(this.map, id);
+            }
+        });
     }
 
     removeImage(id: string): void {
