@@ -119,40 +119,6 @@ test('map falls back to `styleimagemissing` when missing style image resolver re
     expect(map.hasImage(id)).toBeTruthy();
 });
 
-test('map shares in-flight missing style image resolver requests for the same icon', async () => {
-    const map = createMap();
-
-    await map.once('load');
-
-    const id = 'missing-style-image-resolver-shared';
-    const sampleImage = {width: 2, height: 1, data: new Uint8Array(8)};
-    const requested = [];
-    let resolveMissingImage: () => void;
-
-    map.setMissingStyleImageResolver(async (imageId) => {
-        requested.push(imageId);
-        await new Promise<void>((resolve) => {
-            resolveMissingImage = resolve;
-        });
-        return sampleImage;
-    });
-
-    const firstGeneratedImagesPromise = map.style.imageManager.getImages([id]);
-    const secondGeneratedImagesPromise = map.style.imageManager.getImages([id]);
-
-    expect(requested).toEqual([id]);
-
-    resolveMissingImage();
-
-    const [firstGeneratedImages, secondGeneratedImages] = await Promise.all([
-        firstGeneratedImagesPromise,
-        secondGeneratedImagesPromise
-    ]);
-    expect(firstGeneratedImages[id].data.width).toEqual(sampleImage.width);
-    expect(secondGeneratedImages[id].data.width).toEqual(sampleImage.width);
-    expect(map.hasImage(id)).toBeTruthy();
-});
-
 test('map retries missing style image resolver requests after failure', async () => {
     const map = createMap();
 

@@ -54,7 +54,6 @@ export class ImageManager extends Evented {
         promiseResolve: (value: GetImagesResponse | PromiseLike<GetImagesResponse>) => void;
     }>;
     missingImageResolver: MissingImageRequestHandler | null;
-    missingImageRequests: Map<string, Promise<void>>;
 
     patterns: {[_: string]: Pattern};
     atlasImage: RGBAImage;
@@ -69,7 +68,6 @@ export class ImageManager extends Evented {
         this.loaded = false;
         this.requestors = [];
         this.missingImageResolver = null;
-        this.missingImageRequests = new Map();
 
         this.patterns = {};
         this.atlasImage = new RGBAImage({width: 1, height: 1});
@@ -261,16 +259,7 @@ export class ImageManager extends Evented {
     async _resolveMissingImageId(id: string): Promise<void> {
         if (this.getImage(id)) return;
 
-        let request = this.missingImageRequests.get(id);
-        if (!request) {
-            request = this._resolveMissingImageOrFireEvent(id)
-                .finally(() => {
-                    this.missingImageRequests.delete(id);
-                });
-            this.missingImageRequests.set(id, request);
-        }
-
-        await request;
+        await this._resolveMissingImageOrFireEvent(id);
     }
 
     async _resolveMissingImageOrFireEvent(id: string): Promise<void> {
