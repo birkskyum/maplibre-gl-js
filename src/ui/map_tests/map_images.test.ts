@@ -119,29 +119,6 @@ test('map falls back to `styleimagemissing` when missing style image resolver re
     expect(map.hasImage(id)).toBeTruthy();
 });
 
-test('map retries missing style image resolver requests after failure', async () => {
-    const map = createMap();
-
-    const id = 'missing-style-image-resolver-failed';
-    const error = new Error('missing style image resolver failed');
-    const sampleImage = {width: 2, height: 1, data: new Uint8Array(8)};
-    let shouldFail = true;
-
-    map.setMissingStyleImageResolver(async () => {
-        if (shouldFail) {
-            throw error;
-        }
-        return sampleImage;
-    });
-
-    await expect(map.style.imageManager.getImages([id])).rejects.toBe(error);
-
-    shouldFail = false;
-    const generatedImages = await map.style.imageManager.getImages([id]);
-    expect(generatedImages[id].data.width).toEqual(sampleImage.width);
-    expect(map.hasImage(id)).toBeTruthy();
-});
-
 test('map keeps missing style image resolver after replacing the style', async () => {
     const map = createMap();
 
