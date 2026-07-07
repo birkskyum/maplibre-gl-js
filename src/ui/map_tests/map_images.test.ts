@@ -33,9 +33,10 @@ test('map fires `styleimagemissing` for missing icons', async () => {
     const map = createMap();
 
     const id = 'missing-image';
-    const sampleImage = {width: 2, height: 1, data: new Uint8Array(8)};
-    let called: string;
 
+    const sampleImage = {width: 2, height: 1, data: new Uint8Array(8)};
+
+    let called: string;
     map.on('styleimagemissing', e => {
         map.addImage(e.id, sampleImage);
         called = e.id;

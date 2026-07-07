@@ -81,7 +81,6 @@ import {createProjectionFromName} from '../geo/projection/projection_factory.ts'
 import type {OverscaledTileID} from '../tile/tile_id.ts';
 
 const empty = emptyStyle();
-
 /**
  * A feature identifier that is bound to a source
  */
