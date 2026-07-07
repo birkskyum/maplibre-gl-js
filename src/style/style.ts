@@ -1007,12 +1007,7 @@ export class Style extends Evented<MapEventType> {
     }
 
     setMissingImageResolver(resolver: MissingImageResolver | null): void {
-        if (!resolver) {
-            this.imageManager.setMissingImageResolver(null);
-            return;
-        }
-
-        this.imageManager.setMissingImageResolver(async (id) => {
+        this.imageManager.setMissingImageResolver(resolver && (async (id) => {
             const image = await resolver(id);
             if (!image || this.getImage(id)) return;
 
@@ -1020,7 +1015,7 @@ export class Style extends Evented<MapEventType> {
             if (image.userImage?.onAdd) {
                 image.userImage.onAdd(this.map, id);
             }
-        });
+        }));
     }
 
     removeImage(id: string): void {
