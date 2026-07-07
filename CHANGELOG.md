@@ -1,11 +1,33 @@
 ## main
 ### ✨ Features and improvements
-- Debounce `setImages` broadcast to once per animation frame, fixing O(n²) serialization overhead when adding many images ([#7614](https://github.com/maplibre/maplibre-gl-js/pull/7614)) (by [@bradymadden97](https://github.com/bradymadden97))
+- Improve terrain render-to-texture preparation performance by skipping sources that are not rendered to terrain textures ([#7863](https://github.com/maplibre/maplibre-gl-js/pull/7863)) (by [@DoFabien](https://github.com/DoFabien))
 - Add `Map#setMissingStyleImageResolver` for resolving missing style images with sync or async callbacks ([#7850](https://github.com/maplibre/maplibre-gl-js/pull/7850)) (by [@birkskyum](https://github.com/birkskyum))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
 - _...Add new stuff here..._
+
+## 6.0.0-20
+
+### ✨ Features and improvements
+
+- ⚠️ `Map` now composes a `Camera` instead of extending it (`Map` extends `Evented` directly and forwards the camera API). The internal `map.transform` was removed — use map's public API instead or open a PR if you need something that's not exposed. Removed the internal `transform.getMatrixForModel` helper ([#7800](https://github.com/maplibre/maplibre-gl-js/pull/7800)) (by [@HarelM](https://github.com/HarelM))
+
+### 🐞 Bug fixes
+
+- Fix `line-layer-opacity`/`fill-layer-opacity` clipping away a subsequent layer that shares the same source ([#7867](https://github.com/maplibre/maplibre-gl-js/pull/7867)) (by [@CommanderStorm](https://github.com/CommanderStorm))
+- Fix camera jump in flyTo when minZoom is set ([#7743](https://github.com/maplibre/maplibre-gl-js/pull/7743)) (by [@YuChunTsao](https://github.com/YuChunTsao))
+
+## 6.0.0-19
+
+### ✨ Features and improvements
+
+- Drop the archived `@mapbox/whoots-js` dependency by inlining its single `getTileBBox` helper ([#7838](https://github.com/maplibre/maplibre-gl-js/pull/7838)) (by [@qorexdevs](https://github.com/qorexdevs))
+- Debounce `setImages` broadcast to once per animation frame, fixing O(n²) serialization overhead when adding many images ([#7614](https://github.com/maplibre/maplibre-gl-js/pull/7614)) (by [@bradymadden97](https://github.com/bradymadden97))
+
+### 🐞 Bug fixes
+
+- Fix stale terrain depth and coordinate framebuffers when terrain tiles change without camera movement ([#7812](https://github.com/maplibre/maplibre-gl-js/pull/7812)) (by [@DoFabien](https://github.com/DoFabien))
 
 ## 6.0.0-18
 
