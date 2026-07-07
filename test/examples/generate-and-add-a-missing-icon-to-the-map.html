@@ -47,7 +47,7 @@
             }
         }
 
-        return {width, height: width, data};
+        map.addImage(id, {width, height: width, data});
     });
 
     map.on('load', () => {

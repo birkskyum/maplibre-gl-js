@@ -434,7 +434,7 @@ export type AddImageOptions = {
 };
 
 /**
- * Image data accepted by {@link Map.addImage} and {@link MissingStyleImageResolver}.
+ * Image data accepted by {@link Map.addImage}.
  */
 export type StyleImageSource = HTMLImageElement | ImageBitmap | ImageData | {
     width: number;
@@ -443,17 +443,11 @@ export type StyleImageSource = HTMLImageElement | ImageBitmap | ImageData | {
 } | StyleImageInterface;
 
 /**
- * A missing style image resolver can return image data directly, image data with metadata,
- * or no value when it cannot resolve the requested image.
+ * Callback used by {@link Map.setMissingStyleImageResolver} to resolve missing style images,
+ * typically by calling {@link Map.addImage}. MapLibre awaits the returned promise before
+ * treating the image as missing.
  */
-export type MissingStyleImageResolverResult = (StyleImageSource & Partial<StyleImageMetadata>) | ({
-    image: StyleImageSource;
-} & Partial<StyleImageMetadata>) | null | undefined;
-
-/**
- * Callback used by {@link Map.setMissingStyleImageResolver} to resolve missing style images.
- */
-export type MissingStyleImageResolver = (id: string) => MissingStyleImageResolverResult | Promise<MissingStyleImageResolverResult>;
+export type MissingStyleImageResolver = (id: string) => void | Promise<void>;
 
 // This type is used inside map since all properties are assigned a default value.
 export type CompleteMapOptions = Complete<MapOptions>;
@@ -3144,9 +3138,9 @@ export class Map extends Evented<MapEventType> {
     /**
      * Sets a callback that is invoked when an icon or pattern needed by the style is missing.
      *
-     * The resolver may return image data directly, or an object containing image data and the same options
-     * accepted by {@link Map.addImage}. If the resolver returns `null` or `undefined`, MapLibre falls back
-     * to the `styleimagemissing` event.
+     * The resolver typically loads or generates the image and registers it with {@link Map.addImage}.
+     * MapLibre awaits the returned promise before treating the image as missing, so async work is
+     * supported. If the image is still missing afterwards, the `styleimagemissing` event is fired.
      *
      * @param resolver - Callback used to resolve missing images, or `null` to remove the resolver.
      * @example
@@ -3154,7 +3148,7 @@ export class Map extends Evented<MapEventType> {
      * map.setMissingStyleImageResolver(async (id) => {
      *     const response = await fetch(`/icons/${id}.png`);
      *     const image = await createImageBitmap(await response.blob());
-     *     return {image, pixelRatio: 2};
+     *     map.addImage(id, image, {pixelRatio: 2});
      * });
      * ```
      */
@@ -3165,27 +3159,7 @@ export class Map extends Evented<MapEventType> {
     }
 
     _applyMissingStyleImageResolver(): void {
-        if (!this.style) {
-            return;
-        }
-
-        const resolver = this._missingStyleImageResolver;
-        if (!resolver) {
-            this.style.setMissingImageResolver(null);
-            return;
-        }
-
-        const style = this.style;
-        style.setMissingImageResolver(async (id) => {
-            const result = await resolver(id);
-            if (!result || this.style !== style) {
-                return;
-            }
-
-            const image = typeof result === 'object' && 'image' in result ? result.image : result;
-            const options = result as Partial<StyleImageMetadata>;
-            return this._createStyleImage(image, options);
-        });
+        this.style?.setMissingImageResolver(this._missingStyleImageResolver);
     }
 
     _createStyleImage(image: StyleImageSource, options: Partial<StyleImageMetadata> = {}): StyleImage | null {
