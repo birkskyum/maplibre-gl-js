@@ -2703,7 +2703,6 @@ export class Map extends Evented<MapEventType> {
             return this;
         } else {
             this.style = new Style(this, options || {});
-            this._applyMissingStyleImageResolver();
         }
 
         this.style.setEventedParent(this, {style: this.style});
@@ -2720,7 +2719,6 @@ export class Map extends Evented<MapEventType> {
     _lazyInitEmptyStyle(): void {
         if (!this.style) {
             this.style = new Style(this, {});
-            this._applyMissingStyleImageResolver();
             this.style.setEventedParent(this, {style: this.style});
             this.style.loadEmpty();
         }
@@ -3154,12 +3152,8 @@ export class Map extends Evented<MapEventType> {
      */
     setMissingStyleImageResolver(resolver: MissingStyleImageResolver | null): this {
         this._missingStyleImageResolver = resolver;
-        this._applyMissingStyleImageResolver();
+        this.style?.setMissingImageResolver(resolver);
         return this;
-    }
-
-    _applyMissingStyleImageResolver(): void {
-        this.style?.setMissingImageResolver(this._missingStyleImageResolver);
     }
 
     _createStyleImage(image: StyleImageSource, options: Partial<StyleImageMetadata> = {}): StyleImage | null {

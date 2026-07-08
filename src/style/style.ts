@@ -264,6 +264,7 @@ export class Style extends Evented<MapEventType> {
         });
         this.imageManager = new ImageManager();
         this.imageManager.setEventedParent(this);
+        this.imageManager.setMissingImageResolver(map._missingStyleImageResolver);
         const glyphLang = map._container?.lang || (typeof document !== 'undefined' && document.documentElement?.lang) || undefined;
         this.glyphManager = new GlyphManager(map._requestManager, options.localIdeographFontFamily, glyphLang);
         this.lineAtlas = new LineAtlas(256, 512);
