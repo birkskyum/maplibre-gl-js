@@ -3221,8 +3221,7 @@ export class Map extends Evented<MapEventType> {
      * if (map.hasImage('cat')) map.updateImage('cat', './other-cat-icon.png');
      * ```
      */
-    updateImage(id: string,
-        image: StyleImageSource): this {
+    updateImage(id: string, image: StyleImageSource): this {
 
         const existingImage = this.style.getImage(id);
         if (!existingImage) {
