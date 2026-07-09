@@ -254,8 +254,6 @@ export class ImageManager extends Evented {
                     textFitHeight: image.textFitHeight,
                     hasRenderCallback: Boolean(image.userImage?.render)
                 };
-            } else {
-                unresolvedIds.add(id);
             }
         }
 
