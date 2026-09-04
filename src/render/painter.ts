@@ -36,8 +36,7 @@ import type {IndexBuffer} from '../webgl/index_buffer.ts';
 import type {DepthMaskType, DepthFuncType} from '../webgl/types.ts';
 import type {ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
 import type {IRenderToTexture} from './render_to_texture_interface.ts';
-import type {TerrainData} from './terrain.ts';
-import {createRenderOptions, type RenderOptions} from './render_options.ts';
+import {getProjectionData, getTerrainData, createRenderOptions, type RenderOptions} from './render_options.ts';
 import type {ProjectionData} from '../geo/projection/projection_data.ts';
 import type {Framebuffer} from '../webgl/framebuffer.ts';
 import {updateFrameUniformBuffer} from '../webgl/frame_uniform_buffer.ts';
@@ -138,6 +137,7 @@ export class Painter {
     imageManager: ImageManager;
     patternAtlas: PatternAtlas;
     glyphManager: GlyphManager;
+    /** The render in progress; rebuilt at the start of every `render` call. */
     renderOptions: RenderOptions;
     currentStencilSource: string;
     nextStencilID: number;
@@ -289,7 +289,7 @@ export class Painter {
             this.quadTriangleIndexBuffer, this.viewportSegments);
     }
 
-    renderTileClippingMasks(layer: StyleLayer, tileIDs: OverscaledTileID[], renderToTexture: boolean): void {
+    renderTileClippingMasks(layer: StyleLayer, tileIDs: OverscaledTileID[]): void {
         if (this.currentStencilSource === layer.source || !layer.isTileClipped() || !tileIDs?.length) {
             return;
         }
@@ -316,44 +316,39 @@ export class Painter {
         // for more details. In non-subdivided projections the border flag does not change the mesh,
         // so one pass produces the same stencil mask.
         if (this.style.projection.useSubdivision) {
-            this._renderTileMasks(stencilRefs, tileIDs, renderToTexture, true);
+            this._renderTileMasks(stencilRefs, tileIDs, true);
         }
 
         // Final pass - draw borderless tiles with GL_ALWAYS
-        this._renderTileMasks(stencilRefs, tileIDs, renderToTexture, false);
+        this._renderTileMasks(stencilRefs, tileIDs, false);
 
         this._tileClippingMaskIDs = stencilRefs;
     }
 
-    _renderTileMasks(tileStencilRefs: {[_: string]: number}, tileIDs: OverscaledTileID[], renderToTexture: boolean, useBorders: boolean): void {
+    _renderTileMasks(tileStencilRefs: {[_: string]: number}, tileIDs: OverscaledTileID[], useBorders: boolean): void {
         const context = this.context;
         const gl = context.gl;
         const projection = this.style.projection;
-        const transform = this.transform;
+        const renderOptions = this.renderOptions;
 
         const program = this.useProgram('clippingMask');
 
         // tiles are usually supplied in ascending order of z, then y, then x
         for (const tileID of tileIDs) {
             const stencilRef = tileStencilRefs[tileID.key];
-            const terrainData = this.getTerrainDataForTile(tileID, renderToTexture);
+            const terrainData = getTerrainData(renderOptions, tileID);
 
             const mesh = projection.getMeshFromTileID(this.context, tileID.canonical, useBorders, true, 'stencil');
 
-            const projectionData = transform.getProjectionData({overscaledTileID: tileID, applyGlobeMatrix: !renderToTexture, applyTerrainMatrix: true});
+            const projectionData = getProjectionData(renderOptions, tileID);
 
             program.draw(context, gl.TRIANGLES, DepthMode.disabled,
                 // Tests will always pass, and ref value will be written to stencil buffer.
                 new StencilMode({func: gl.ALWAYS, mask: 0}, stencilRef, 0xFF, gl.KEEP, gl.KEEP, gl.REPLACE),
-                ColorMode.disabled, renderToTexture ? CullFaceMode.disabled : CullFaceMode.backCCW, null,
+                ColorMode.disabled, renderOptions.isRenderingToTerrainTexture ? CullFaceMode.disabled : CullFaceMode.backCCW, null,
                 terrainData, projectionData, '$clipping', mesh.vertexBuffer,
                 mesh.indexBuffer, mesh.segments);
         }
-    }
-
-    getTerrainDataForTile(tileID: OverscaledTileID, isRenderingToTexture: boolean): TerrainData | null {
-        if (isRenderingToTexture && this.style.projection?.name === 'mercator') return null;
-        return this.style.map.terrain?.getTerrainData(tileID) || null;
     }
 
     /**
@@ -372,10 +367,10 @@ export class Painter {
 
         // tiles are usually supplied in ascending order of z, then y, then x
         for (const tileID of tileIDs) {
-            const terrainData = this.style.map.terrain?.getTerrainData(tileID);
+            const terrainData = getTerrainData(this.renderOptions, tileID);
             const mesh = projection.getMeshFromTileID(this.context, tileID.canonical, true, true, 'raster');
 
-            const projectionData = transform.getProjectionData({overscaledTileID: tileID, applyGlobeMatrix: true, applyTerrainMatrix: true});
+            const projectionData = getProjectionData(this.renderOptions, tileID);
 
             program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled,
                 ColorMode.disabled, CullFaceMode.backCCW, null,
@@ -596,7 +591,7 @@ export class Painter {
                 const tileManager = tileManagers[layer.source];
                 const coords = coordsAscending[layer.source];
 
-                this.renderTileClippingMasks(layer, coords, false);
+                this.renderTileClippingMasks(layer, coords);
                 this.renderLayer(this, tileManager, layer, coords, renderOptions);
             }
         }
@@ -617,7 +612,7 @@ export class Painter {
                 globeDepthRendered = true;
                 // Render the globe sphere into the depth buffer - but only if globe is enabled and terrain is disabled.
                 // There should be no need for explicitly writing tile depths when terrain is enabled.
-                if (renderOptions.isRenderingGlobe && !this.style.map.terrain) {
+                if (renderOptions.isRenderingGlobe && !renderOptions.terrain) {
                     this._renderTilesDepthBuffer();
                 }
             }
@@ -627,7 +622,7 @@ export class Painter {
             // separate clipping masks
             const coords = (layer.type === 'symbol' ? coordsDescendingSymbol : coordsDescending)[layer.source];
 
-            this.renderTileClippingMasks(layer, coordsAscending[layer.source], !!this.renderToTexture);
+            this.renderTileClippingMasks(layer, coordsAscending[layer.source]);
             this.renderLayer(this, tileManager, layer, coords, renderOptions);
         }
 
@@ -639,7 +634,7 @@ export class Painter {
         if (this.options.showTileBoundaries) {
             const selectedSource = selectDebugSource(this.style, this.transform.zoom);
             if (selectedSource) {
-                this.drawFunctions.debug(this, selectedSource, selectedSource.getVisibleCoordinates());
+                this.drawFunctions.debug(this, selectedSource, selectedSource.getVisibleCoordinates(), renderOptions);
             }
         }
 
@@ -656,7 +651,8 @@ export class Painter {
      * Update the depth framebuffer if the camera has moved or tiles have reloaded.
      */
     maybeDrawDepth(): void {
-        if (!this.style?.map?.terrain) {
+        const terrain = this.renderOptions.terrain;
+        if (!terrain) {
             return;
         }
         const prevMatrix = this.terrainFacilitator.matrix;
@@ -665,7 +661,7 @@ export class Painter {
         // Update depth-framebuffer on camera movement, or tile reloading
         let doUpdate = this.terrainFacilitator.depthDirty;
         doUpdate ||= !mat4.equals(prevMatrix, currMatrix);
-        doUpdate ||= this.style.map.terrain.tileManager.anyTilesAfterTime(this.terrainFacilitator.renderTime);
+        doUpdate ||= terrain.tileManager.anyTilesAfterTime(this.terrainFacilitator.renderTime);
 
         if (!doUpdate) {
             return;
@@ -674,7 +670,7 @@ export class Painter {
         mat4.copy(prevMatrix, currMatrix);
         this.terrainFacilitator.renderTime = now();
         this.terrainFacilitator.depthDirty = false;
-        this.drawFunctions.terrainDepth(this, this.style.map.terrain);
+        this.drawFunctions.terrainDepth(this, terrain);
     }
 
     renderLayer(painter: Painter, tileManager: TileManager, layer: StyleLayer, coords: OverscaledTileID[], renderOptions: RenderOptions): void {

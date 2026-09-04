@@ -8,14 +8,12 @@ import type {CustomLayerProjectionDataParams, CustomRenderMethodInput, CustomSty
 import {OverscaledTileID} from '../../tile/tile_id.ts';
 
 export function drawCustom(painter: Painter, tileManager: TileManager, layer: CustomStyleLayer, renderOptions: RenderOptions): void {
-
-    const {isRenderingGlobe} = renderOptions;
     const context = painter.context;
     const implementation = layer.implementation;
     const projection = painter.style.projection;
     const transform = painter.transform;
 
-    const projectionData = transform.getProjectionDataForCustomLayer(isRenderingGlobe);
+    const projectionData = transform.getProjectionDataForCustomLayer(renderOptions.isRenderingGlobe);
 
     const customLayerArgs: CustomRenderMethodInput = {
         farZ: transform.farZ,

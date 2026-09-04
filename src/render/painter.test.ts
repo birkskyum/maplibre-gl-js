@@ -8,7 +8,6 @@ import {StubMap} from '../util/test/util.ts';
 import {Texture} from '../webgl/texture.ts';
 import {createNullGL} from '../util/test/null_gl.ts';
 import {restoreNow, setNow} from '../util/time_control.ts';
-import {OverscaledTileID} from '../tile/tile_id.ts';
 
 describe('render', () => {
     let painter: Painter;
@@ -36,16 +35,6 @@ describe('render', () => {
         style._updatePlacement(transform, false, 0, false);
     });
 
-    function mockTerrainData() {
-        const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
-        const terrainData = {tile: null};
-        const getTerrainData = vi.fn(() => terrainData);
-        map.terrain = {getTerrainData};
-        painter.style = style;
-
-        return {tileID, terrainData, getTerrainData};
-    }
-
     test('must not fail with incompletely loaded style', () => {
         painter.render(style, renderOptions);
 
@@ -59,28 +48,6 @@ describe('render', () => {
         painter.render(style, renderOptions);
 
         expect(terrainDepth).toHaveBeenCalled();
-    });
-
-    test('uses terrain data for regular Mercator draws', () => {
-        const {tileID, terrainData, getTerrainData} = mockTerrainData();
-
-        expect(painter.getTerrainDataForTile(tileID, false)).toBe(terrainData);
-        expect(getTerrainData).toHaveBeenCalledWith(tileID);
-    });
-
-    test('skips terrain data for Mercator render-to-texture draws', () => {
-        const {tileID, getTerrainData} = mockTerrainData();
-
-        expect(painter.getTerrainDataForTile(tileID, true)).toBeNull();
-        expect(getTerrainData).not.toHaveBeenCalled();
-    });
-
-    test('keeps terrain data for non-Mercator render-to-texture draws', () => {
-        const {tileID, terrainData, getTerrainData} = mockTerrainData();
-        style._setProjectionInternal('globe');
-
-        expect(painter.getTerrainDataForTile(tileID, true)).toBe(terrainData);
-        expect(getTerrainData).toHaveBeenCalledWith(tileID);
     });
 
     test('builds render options from the transform, globe projection and terrain', () => {

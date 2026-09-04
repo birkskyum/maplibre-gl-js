@@ -18,6 +18,7 @@ const offsets = layout.offsets;
 /**
  * @internal
  * The buffer behind the `FrameUBO` block in the shader preludes, written once per frame by `Painter.render`.
+ * Corresponds to MapLibre Native's `GlobalPaintParamsUBO`; layouts differ.
  */
 export function createFrameUniformBuffer(context: Context): UniformBuffer {
     return new UniformBuffer(context, UBO_BINDINGS.FrameUBO, layout);
