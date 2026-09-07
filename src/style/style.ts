@@ -472,6 +472,7 @@ export class Style extends Evented<MapEventType> {
 
     _load(json: StyleSpecification, options: StyleSwapOptions & StyleSetterOptions, previousStyle?: StyleSpecification): void {
         let nextState = options.transformStyle ? options.transformStyle(previousStyle, json) : json;
+        nextState = this._applyProjectionOverride(nextState);
         if (options.validate && validateStyleAndEmit(this, nextState)) {
             return;
         }
@@ -848,6 +849,7 @@ export class Style extends Evented<MapEventType> {
 
         const serializedStyle =  this.serialize();
         nextState = options.transformStyle ? options.transformStyle(serializedStyle, nextState) : nextState;
+        nextState = this._applyProjectionOverride(nextState);
         const validate = options.validate ?? true;
         if (validate && validateStyleAndEmit(this, nextState)) return false;
 
@@ -1699,6 +1701,12 @@ export class Style extends Evented<MapEventType> {
 
         this.light.setLight(lightOptions, options);
         this.light.updateTransitions(parameters);
+    }
+
+    /** Applies the map's constructor projection before style validation, diffing, and camera migration. */
+    private _applyProjectionOverride(style: StyleSpecification): StyleSpecification {
+        const projection = this.map._projectionOverride;
+        return projection ? {...style, projection} : style;
     }
 
     getProjection(): ProjectionSpecification {

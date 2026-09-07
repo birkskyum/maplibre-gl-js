@@ -22,16 +22,11 @@
     const map = new maplibregl.Map({
         container: 'map',
         style: 'https://demotiles.maplibre.org/style.json',
+        projection: {type: 'globe'},
         center: [30.0, 40.0],
     });
 
     map.addControl(new maplibregl.GlobeControl(), 'top-right');
-
-    map.on('style.load', () => {
-        map.setProjection({
-            type: 'globe', // Set projection to globe
-        });
-    });
 
     map.on('load', () => {
         map.addSource('extrude-polygons', {

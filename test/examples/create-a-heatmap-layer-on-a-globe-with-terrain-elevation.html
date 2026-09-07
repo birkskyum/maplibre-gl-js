@@ -31,6 +31,7 @@
 
         const map = new maplibregl.Map({
             container: 'map',
+            projection: {type: 'globe'},
             maxPitch: 95,
             center: [-120, 37.422],
             zoom: 7.25,
@@ -41,7 +42,6 @@
 
         map.setStyle('https://tiles.openfreemap.org/styles/liberty', {
             transformStyle: (previousStyle, nextStyle) => {
-                nextStyle.projection = { type: 'globe' };
                 nextStyle.sources = {
                     ...nextStyle.sources, terrainSource: {
                         type: 'raster-dem',

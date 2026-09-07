@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Add a `projection` constructor option to choose a map projection that persists across style changes.
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes

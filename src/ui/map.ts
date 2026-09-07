@@ -349,6 +349,12 @@ export type MapOptions = {
      */
     style?: StyleSpecification | string;
     /**
+     * The map's projection, for example `{type: 'globe'}`. Takes precedence over the style's projection
+     * and is preserved across calls to {@link Map.setStyle}. Use {@link Map.setProjection} to change it.
+     * If omitted, the projection is taken from the style, defaulting to Mercator.
+     */
+    projection?: ProjectionSpecification;
+    /**
      * If `false`, the map's pitch (tilt) control with "drag to rotate" interaction will be disabled.
      * @defaultValue true
      */
@@ -635,6 +641,12 @@ export class Map extends Evented<MapEventType> {
     _localIdeographFontFamily: string | false;
     _validateStyle: boolean;
     _styleUrl: string | null = null;
+    /**
+     * @internal
+     * Projection selected in the constructor, updated by setProjection and preserved when styles change.
+     * Undefined leaves projection selection to the style.
+     */
+    _projectionOverride?: ProjectionSpecification;
     _requestManager: RequestManager;
     _locale: Record<string, string>;
     _removed: boolean;
@@ -782,6 +794,7 @@ export class Map extends Evented<MapEventType> {
         this._canvasContextAttributes = {...resolvedOptions.canvasContextAttributes};
         this._trackResize = resolvedOptions.trackResize === true;
         this._terrainSkirtLength = resolvedOptions.terrainSkirtLength;
+        this._projectionOverride = resolvedOptions.projection;
         this._refreshExpiredTiles = resolvedOptions.refreshExpiredTiles === true;
         this._fadeDuration = resolvedOptions.fadeDuration;
         this._crossSourceCollisions = resolvedOptions.crossSourceCollisions === true;
@@ -850,10 +863,14 @@ export class Map extends Evented<MapEventType> {
             }
         }
 
-        // When no style is set or it's using something other than the globe projection, we can constrain the camera.
-        // When a style is set with other projections though, we can't constrain the camera until the style is loaded
-        // and the correct transform is used. Otherwise, valid points in the desired projection could be rejected
-        const shouldConstrainUsingMercatorTransform = typeof resolvedOptions.style === 'string' || !(resolvedOptions.style?.projection?.type === 'globe');
+        const initialProjection = resolvedOptions.projection ?? (typeof resolvedOptions.style === 'object' ? resolvedOptions.style?.projection : undefined);
+        /**
+         * Apply the temporary Mercator transform's constraints when the initial projection is Mercator
+         * or not yet known, such as a style URL without a constructor projection. For a known non-Mercator
+         * projection, defer constraints until style loading installs the matching transform. Otherwise,
+         * Mercator's limits could clamp camera positions and zoom levels that are valid in that projection.
+         */
+        const shouldConstrainUsingMercatorTransform = !initialProjection || initialProjection.type === 'mercator';
         this.resize(null, shouldConstrainUsingMercatorTransform);
 
         this._localIdeographFontFamily = resolvedOptions.localIdeographFontFamily;
@@ -4658,16 +4675,18 @@ export class Map extends Evented<MapEventType> {
      * let projection = map.getProjection();
      * ```
      */
-    getProjection(): ProjectionSpecification { return this.style.getProjection(); }
+    getProjection(): ProjectionSpecification { return this.style?.getProjection() ?? this._projectionOverride; }
 
     /**
      * Sets the {@link ProjectionSpecification}.
+     * If a projection was supplied to the constructor, this also updates the projection preserved across style changes.
      * @param projection - the projection specification to set
      * @returns
      */
     setProjection(projection: ProjectionSpecification): this {
         this._lazyInitEmptyStyle();
         this.style.setProjection(projection);
+        this._projectionOverride &&= projection;
         return this._update(true);
     }
 }

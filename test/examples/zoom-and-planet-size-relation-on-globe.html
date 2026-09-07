@@ -42,14 +42,9 @@
     const map = new maplibregl.Map({
         container: 'map',
         style: 'https://demotiles.maplibre.org/style.json',
+        projection: {type: 'globe'},
         center: [0, 0],
         zoom: 2,
-    });
-
-    map.on('style.load', () => {
-        map.setProjection({
-            type: 'globe', // Set projection to globe
-        });
     });
 
     // To stay consistent with web mercator maps, globe is automatically enlarged when map center is nearing the poles.

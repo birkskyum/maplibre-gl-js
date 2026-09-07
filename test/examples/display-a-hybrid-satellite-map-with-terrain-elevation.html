@@ -21,6 +21,7 @@
 
     const map = new maplibregl.Map({
         container: 'map',
+        projection: {type: 'globe'},
         zoom: 12,
         center: [11.39085, 47.27574],
         pitch: 70,
@@ -29,7 +30,6 @@
 
     map.setStyle('https://tiles.openfreemap.org/styles/bright', {
             transformStyle: (previousStyle, nextStyle) => {
-                nextStyle.projection = {type: 'globe'};
                 nextStyle.sources = {
                     ...nextStyle.sources,
                     satelliteSource: {

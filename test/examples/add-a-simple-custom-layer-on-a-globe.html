@@ -40,15 +40,10 @@
     const map = new maplibregl.Map({
         container: 'map',
         style: 'https://demotiles.maplibre.org/style.json',
+        projection: {type: 'globe'},
         zoom: 3,
         center: [7.5, 58],
         canvasContextAttributes: {antialias: true}
-    });
-
-    map.on('style.load', () => {
-        map.setProjection({
-            type: 'globe', // Set projection to globe
-        });
     });
 
     document.getElementById('project').addEventListener('click', () => {

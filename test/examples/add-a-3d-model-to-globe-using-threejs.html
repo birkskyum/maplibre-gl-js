@@ -62,17 +62,12 @@
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://demotiles.maplibre.org/style.json',
+            projection: {type: 'globe'},
             zoom: 5.5,
             center: [150.16546137527212, -35.017179237129994],
             maxPitch: 80,
             pitch: 70,
             canvasContextAttributes: {antialias: true} // create the gl context with MSAA antialiasing, so custom layers are antialiased
-        });
-
-        map.on('style.load', () => {
-            map.setProjection({
-                type: 'globe', // Set projection to globe
-            });
         });
 
         // The API demonstrated in this example will work regardless of projection.

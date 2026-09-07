@@ -20,17 +20,12 @@
 <script type="module">
     import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
 
-    const map = new maplibregl.Map({
+    new maplibregl.Map({
         container: 'map',
         style: 'https://demotiles.maplibre.org/style.json',
+        projection: {type: 'globe'},
         zoom: 2,
         center: [0, 0],
-    });
-
-    map.on('style.load', () => {
-        map.setProjection({
-            type: 'globe', // Set projection to globe
-        });
     });
 </script>
 </body>
