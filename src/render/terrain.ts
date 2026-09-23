@@ -226,7 +226,7 @@ export class Terrain {
     /**
      * Get the elevation for given {@link LngLat} in respect of exaggeration.
      * @param lnglat - the location
-     * @param zoom - the zoom, use {@link getElevationForLngLat} if you don't want a specific zoom level, but more accurate results.
+     * @param zoom - the zoom, floored to the tile zoom. Use {@link getElevationForLngLat} if you don't want a specific zoom level, but more accurate results.
      * @returns the elevation
      */
     getElevationForLngLatZoom(lnglat: LngLat, zoom: number): number {
@@ -513,6 +513,7 @@ export class Terrain {
     }
 
     _getOverscaledTileIDFromLngLatZoom(lnglat: LngLat, zoom: number): { tileID: OverscaledTileID; mercatorX: number; mercatorY: number} {
+        zoom = Math.floor(zoom);
         const mercatorCoordinate = MercatorCoordinate.fromLngLat(lnglat.wrap());
         const worldSize = (1 << zoom) * EXTENT;
         const mercatorX = mercatorCoordinate.x * worldSize;

@@ -6,6 +6,7 @@ import {RGBAImage} from '../util/image.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {Tile} from '../tile/tile.ts';
 import {LngLat} from '../geo/lng_lat.ts';
+import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
 import {EXTENT} from '../data/extent.ts';
 import {MAX_TILE_ZOOM, MIN_TILE_ZOOM} from '../util/util.ts';
 import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
@@ -372,6 +373,22 @@ describe('Terrain', () => {
 
         expect(spy).toHaveBeenCalled();
         expect((spy.mock.calls[0][0] as OverscaledTileID).canonical.z).toBe(zoom);
+    });
+
+    test('getElevationForLngLatZoom at a fractional zoom reads the DEM tile loaded for its tile zoom', () => {
+        const lngLat = new LngLat(11.39, 47.27);
+        const location = MercatorCoordinate.fromLngLat(lngLat);
+        const demTileID = new OverscaledTileID(11, 0, 11, Math.floor(location.x * 2 ** 11), Math.floor(location.y * 2 ** 11));
+        const demTile = {tileID: demTileID, dem: createDEM(() => 250)} as Tile;
+        const tileManager = {
+            _source: {tileSize: 512, minzoom: 0, maxzoom: 22},
+            getSource: () => ({minzoom: 0, maxzoom: 22}),
+            getTileByID: (key: string) => (key === demTileID.key ? demTile : undefined),
+            _outOfViewCache: {getByKey: () => undefined}
+        } as unknown as TileManager;
+        const terrain = new Terrain(null, tileManager, {source: 'dem', exaggeration: 1});
+
+        expect(terrain.getElevationForLngLatZoom(lngLat, 12.7)).toBe(250);
     });
 
     test('getElevationForLngLatZoom with lng less than -180 wraps correctly', () => {
