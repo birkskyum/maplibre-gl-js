@@ -1,4 +1,5 @@
 import {describe, beforeEach, afterEach, test, expect, vi} from 'vitest';
+import Point from '@mapbox/point-geometry';
 import {createMap, beforeMapTest, waitForEvent, createTerrain} from '../../util/test/util.ts';
 import simulate from '../../../test/unit/lib/simulate_interaction.ts';
 import {LngLat} from '../../geo/lng_lat.ts';
@@ -11,7 +12,7 @@ import {Painter, type RTTObject} from '../../render/painter.ts';
 import {MapSourceDataEvent} from '../events.ts';
 import * as timeControl from '../../util/time_control.ts';
 
-import type {Map} from '../map.ts';
+import type {Map, MapOptions} from '../map.ts';
 import type {Terrain} from '../../render/terrain.ts';
 
 let server: FakeServer;
@@ -300,8 +301,8 @@ describe('Gesture end on terrain', () => {
 });
 
 describe('Terrain changing under and around a gesture', () => {
-    async function createMapOverTerrain(pitch: number): Promise<Map> {
-        const map = createMap({interactive: true, zoom: 11, pitch});
+    async function createMapOverTerrain(pitch: number, options?: Partial<MapOptions>): Promise<Map> {
+        const map = createMap({interactive: true, zoom: 11, pitch, ...options});
         await map.once('load');
         map.addSource('dem', {type: 'raster-dem', tiles: ['http://example.com/{z}/{x}/{y}.png']});
         map.setTerrain({source: 'dem'});
@@ -333,6 +334,46 @@ describe('Terrain changing under and around a gesture', () => {
 
         expect(bearingAfterSecondMove - bearingAfterFirstMove).toBeCloseTo(bearingAfterFirstMove - bearingAtStart, 5);
         expect(map.getCameraTargetElevation()).toBe(3000);
+    });
+
+    test('a drag around the pointer holds the center elevation until it ends', async () => {
+        const map = await createMapOverTerrain(60, {dragRotate: {around: 'pointer'}});
+        const terrainElevation = vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
+        const pivot = map.unproject([40, 180]);
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 40, clientY: 180});
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 50, clientY: 180});
+        map.redraw();
+        const pivotDuringDrag = map.project(pivot);
+        terrainElevation.mockReturnValue(3000);
+        map.redraw();
+        const elevationDuringDrag = map.getCameraTargetElevation();
+        simulate.mouseup(map.getCanvas(), {buttons: 0, button: 2, clientX: 50, clientY: 180});
+        map.redraw();
+
+        expect(pivotDuringDrag.dist(new Point(40, 180))).toBeLessThan(0.1);
+        expect(elevationDuringDrag).toBe(0);
+        expect(map.getCameraTargetElevation()).toBe(3000);
+    });
+
+    test('the turn back to north after a drag around the pointer re-solves the zoom onto terrain that rose under the center without moving the camera', async () => {
+        const map = await createMapOverTerrain(45, {dragRotate: {around: 'pointer'}});
+        const terrainElevation = vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
+        const now = vi.spyOn(timeControl, 'now').mockReturnValue(0);
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 40, clientY: 180});
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 48, clientY: 180});
+        map.redraw();
+        simulate.mouseup(map.getCanvas(), {buttons: 0, button: 2, clientX: 48, clientY: 180});
+        map.redraw();
+        terrainElevation.mockReturnValue(1000);
+        now.mockReturnValue(1000);
+        map.redraw();
+        map.redraw();
+
+        expect(map.getBearing()).toBe(0);
+        expect(map.getCameraTargetElevation()).toBe(1000);
+        expect(map.getZoom()).toBeCloseTo(11.190145, 5);
     });
 
     test('a DEM tile landing while a pan drag is in flight leaves the camera where the drag put it, and the release re-solves the zoom onto the new terrain without moving it', async () => {

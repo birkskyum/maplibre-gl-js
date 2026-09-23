@@ -18,6 +18,7 @@ import {DragRotateHandler} from './handler/shim/drag_rotate.ts';
 import {TwoFingersTouchZoomRotateHandler} from './handler/shim/two_fingers_touch.ts';
 import {CooperativeGesturesHandler} from './handler/cooperative_gestures.ts';
 import {TransformProvider} from './handler/transform-provider.ts';
+import {captureRotationPivot, orbitRotationPivot} from './rotation_pivot.ts';
 import {extend, isPointableEvent, isTouchableEvent, isTouchableOrPointableType} from '../util/util.ts';
 import {browser} from '../util/browser.ts';
 import Point from '@mapbox/point-geometry';
@@ -28,6 +29,7 @@ import type {MapControlsDeltas} from '../geo/projection/camera_helper.ts';
 import type {LngLat} from '../geo/lng_lat.ts';
 import type {ITransform} from '../geo/transform_interface.ts';
 import type {Terrain} from '../render/terrain.ts';
+import type {RotationPivot} from './rotation_pivot.ts';
 
 const isMoving = (p: EventsInProgress) => p.zoom || p.drag || p.roll || p.pitch || p.rotate;
 
@@ -193,6 +195,8 @@ export class HandlerManager {
      * under the fingers; the gesture's end re-solves the camera onto the terrain.
      */
     _terrainGesture: TerrainGesture = {inFlight: false, anchorElevation: null};
+    /** The point a drag turns the camera around, picked on the drag's first frame and kept until it ends. */
+    _rotationPivot: RotationPivot | null = null;
     _zoom: {handlerName: string};
     _previousActiveHandlers: {[x: string]: Handler};
     _listeners: Array<[Window | Document | HTMLElement, string, {
@@ -321,15 +325,16 @@ export class HandlerManager {
             map.touchPitch.enable(options.touchPitch);
         }
         const getCenter = () => this._camera.transform.centerPoint;
-        const mouseRotate = generateMouseRotationHandler(options, getCenter);
-        const mousePitch = generateMousePitchHandler(options);
-        const mouseRoll = generateMouseRollHandler(options, getCenter);
+        const getAround = () => map.dragRotate._around;
+        const mouseRotate = generateMouseRotationHandler(options, getCenter, getAround);
+        const mousePitch = generateMousePitchHandler(options, getAround);
+        const mouseRoll = generateMouseRollHandler(options, getCenter, getAround);
         map.dragRotate = new DragRotateHandler(options, mouseRotate, mousePitch, mouseRoll);
         this._add('mouseRotate', mouseRotate, ['mousePitch']);
         this._add('mousePitch', mousePitch, ['mouseRotate', 'mouseRoll']);
         this._add('mouseRoll', mouseRoll, ['mousePitch']);
         if (options.interactive && options.dragRotate) {
-            map.dragRotate.enable();
+            map.dragRotate.enable(options.dragRotate);
         }
 
         const mousePan = generateMousePanHandler(options);
@@ -579,6 +584,12 @@ export class HandlerManager {
         // stop any ongoing camera animations (easeTo, flyTo)
         this._camera.stop(true);
 
+        if (this._turnsAroundPivot(combinedResult, combinedEventsInProgress)) {
+            this._orbitRotationPivot(tr, combinedResult, terrain);
+            this._commitFrame(tr, combinedResult, combinedEventsInProgress, deactivatedHandlers);
+            return;
+        }
+
         const {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta} = combinedResult;
 
         let {around, aroundOnSurface} = this._resolveAround(combinedResult, terrain, tr);
@@ -609,12 +620,39 @@ export class HandlerManager {
             panDelta,
         });
 
+        this._commitFrame(tr, combinedResult, combinedEventsInProgress, deactivatedHandlers);
+    }
+
+    _commitFrame(tr: ITransform,
+        combinedResult: HandlerResult,
+        combinedEventsInProgress: EventsInProgress,
+        deactivatedHandlers: Record<string, Event>): void {
         this._camera.applyUpdatedTransform(tr);
 
         this._map._update();
         if (!combinedResult.noInertia) this._inertia.record(combinedResult);
         this._fireEvents(combinedEventsInProgress, deactivatedHandlers, true);
+    }
 
+    /**
+     * Whether a frame turns the camera around a point of its own, which a handler asks for by giving a frame that rotates,
+     * pitches or rolls the camera an `around`. Globe controls turn the camera around the center.
+     */
+    _turnsAroundPivot(combinedResult: HandlerResult, combinedEventsInProgress: EventsInProgress): boolean {
+        if (!combinedResult.around) return false;
+        return !combinedEventsInProgress.drag && !combinedEventsInProgress.zoom && !this._camera.cameraHelper.useGlobeControls;
+    }
+
+    /**
+     * Turns the camera around the pivot that the drag picked on its first frame. Over terrain it holds the center
+     * elevation until the drag ends, as every gesture over terrain does.
+     */
+    _orbitRotationPivot(tr: ITransform, combinedResult: HandlerResult, terrain: Terrain | null): void {
+        this._rotationPivot ??= captureRotationPivot(tr, combinedResult.around, terrain);
+        orbitRotationPivot(tr, this._rotationPivot, combinedResult, terrain);
+        if (!terrain) return;
+        this._terrainGesture.inFlight = true;
+        this._camera.elevationFreeze = true;
     }
 
     /**
@@ -778,6 +816,7 @@ export class HandlerManager {
         if (allowEndAnimation && finishedMoving) {
             this._updatingCamera = true;
             const inertialEase = this._inertia._onMoveEnd(this._map.dragPan._inertiaOptions);
+            const pivot = this._rotationPivot?.location;
 
             const shouldSnapToNorth = bearing => bearing !== 0 && -this._bearingSnap < bearing && bearing < this._bearingSnap;
 
@@ -785,16 +824,18 @@ export class HandlerManager {
                 if (shouldSnapToNorth(inertialEase.bearing || this._map.getBearing())) {
                     inertialEase.bearing = 0;
                 }
+                if (pivot) inertialEase.around = pivot;
                 inertialEase.freezeElevation = true;
                 this._map.easeTo(inertialEase, {originalEvent: originalEndEvent});
             } else {
                 this._fireEvent('moveend', originalEndEvent);
                 if (shouldSnapToNorth(this._map.getBearing())) {
-                    this._map.resetNorth();
+                    this._map.rotateTo(0, {duration: 1000, around: pivot, freezeElevation: pivot !== undefined});
                 }
             }
             this._updatingCamera = false;
         }
+        if (finishedMoving) this._rotationPivot = null;
 
     }
 

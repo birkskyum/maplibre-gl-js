@@ -17,6 +17,21 @@ export type DragRotateHandlerOptions = {
 };
 
 /**
+ * Options object for {@link DragRotateHandler.enable}.
+ */
+export type DragRotateOptions = {
+    /**
+     * The point that the drag turns and tilts the map around. With `'center'` it is the center of the map. With
+     * `'pointer'` it is the terrain under the pointer where the drag starts, or the ground where there is no terrain,
+     * and the center where the drag starts in the sky. The drag keeps that point in its place on the screen and at
+     * its distance from the camera, so tilting also zooms, and horizontal movement changes the bearing by
+     * `rotateSpeed` per pixel wherever the pointer is.
+     * @defaultValue 'center'
+     */
+    around?: 'center' | 'pointer';
+};
+
+/**
  * The `DragRotateHandler` allows the user to rotate the map by clicking and
  * dragging the cursor while holding the right mouse button or `ctrl` key.
  *
@@ -29,6 +44,7 @@ export class DragRotateHandler {
     _mouseRoll: MouseRollHandler;
     _pitchWithRotate: boolean;
     _rollEnabled: boolean;
+    _around: 'center' | 'pointer';
 
     /** @internal */
     constructor(options: DragRotateHandlerOptions, mouseRotate: MouseRotateHandler, mousePitch: MousePitchHandler, mouseRoll: MouseRollHandler) {
@@ -37,17 +53,21 @@ export class DragRotateHandler {
         this._mouseRotate = mouseRotate;
         this._mousePitch = mousePitch;
         this._mouseRoll = mouseRoll;
+        this._around = 'center';
     }
 
     /**
      * Enables the "drag to rotate" interaction.
      *
+     * @param options - Options object
      * @example
      * ```ts
      * map.dragRotate.enable();
+     * map.dragRotate.enable({around: 'pointer'});
      * ```
      */
-    enable(): void {
+    enable(options?: DragRotateOptions | boolean): void {
+        this._around = typeof options === 'object' ? options.around ?? 'center' : 'center';
         this._mouseRotate.enable();
         if (this._pitchWithRotate) this._mousePitch.enable();
         if (this._rollEnabled) this._mouseRoll.enable();

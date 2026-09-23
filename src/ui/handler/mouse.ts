@@ -23,6 +23,15 @@ export interface MouseRollHandler extends DragMoveHandler<DragRollResult, MouseE
 const LEFT_BUTTON = 0;
 const RIGHT_BUTTON = 2;
 
+/**
+ * Gives a move that turns the camera the point where the drag started as its `around` when the drag turns the
+ * camera around the pointer. A move without a change gets none, as that would make the handler active.
+ */
+function aroundDragStart<T extends DragRotateResult | DragPitchResult | DragRollResult>(result: T, around: 'center' | 'pointer', startPoint: Point): T {
+    if (around === 'center' || !(result.bearingDelta || result.pitchDelta || result.rollDelta)) return result;
+    return {...result, around: startPoint};
+}
+
 const assignEvents = <T extends DragPanResult | DragRotateResult | DragPitchResult | DragRollResult>(handler: DragHandler<T, MouseEvent>): void => {
     handler.mousedown = handler.dragStart;
     handler.mousemoveWindow = handler.dragMove;
@@ -60,7 +69,7 @@ export function generateMouseRotationHandler({enable, clickTolerance, aroundCent
      * @defaultValue 0.8
      */
     rotateSpeed?: number;
-}, getCenter: () => Point): MouseRotateHandler {
+}, getCenter: () => Point, getAround?: () => 'center' | 'pointer'): MouseRotateHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === LEFT_BUTTON && e.ctrlKey) ||
@@ -68,7 +77,10 @@ export function generateMouseRotationHandler({enable, clickTolerance, aroundCent
     });
     return new DragHandler<DragRotateResult, MouseEvent>({
         clickTolerance,
-        move: (lastPoint: Point, currentPoint: Point) => {
+        move: (lastPoint: Point, currentPoint: Point, startPoint: Point) => {
+            if (getAround?.() === 'pointer') {
+                return aroundDragStart({bearingDelta: (currentPoint.x - lastPoint.x) * rotateSpeed}, 'pointer', startPoint);
+            }
             const center = getCenter();
             if (aroundCenter && Math.abs(center.y - lastPoint.y) > minPixelCenterThreshold) {
                 // Avoid rotation related to y axis since it is "saved" for pitch
@@ -96,7 +108,7 @@ export function generateMousePitchHandler({enable, clickTolerance, pitchSpeed = 
      */
     pitchSpeed?: number;
     enable?: boolean;
-}): MousePitchHandler {
+}, getAround?: () => 'center' | 'pointer'): MousePitchHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === LEFT_BUTTON && e.ctrlKey) ||
@@ -104,8 +116,8 @@ export function generateMousePitchHandler({enable, clickTolerance, pitchSpeed = 
     });
     return new DragHandler<DragPitchResult, MouseEvent>({
         clickTolerance,
-        move: (lastPoint: Point, point: Point) =>
-            ({pitchDelta: (point.y - lastPoint.y) * pitchSpeed}),
+        move: (lastPoint: Point, point: Point, startPoint: Point) =>
+            aroundDragStart({pitchDelta: (point.y - lastPoint.y) * pitchSpeed}, getAround?.() ?? 'center', startPoint),
         // prevent browser context menu when necessary; we don't allow it with rotation
         // because we can't discern rotation gesture start from contextmenu on Mac
         moveStateManager: mouseMoveStateManager,
@@ -118,20 +130,20 @@ export function generateMouseRollHandler({enable, clickTolerance, rollDegreesPer
     clickTolerance: number;
     rollDegreesPerPixelMoved?: number;
     enable?: boolean;
-}, getCenter: () => Point): MouseRollHandler {
+}, getCenter: () => Point, getAround?: () => 'center' | 'pointer'): MouseRollHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === RIGHT_BUTTON && e.ctrlKey),
     });
     return new DragHandler<DragRollResult, MouseEvent>({
         clickTolerance,
-        move: (lastPoint: Point, currentPoint: Point) => {
+        move: (lastPoint: Point, currentPoint: Point, startPoint: Point) => {
             const center = getCenter();
             let rollDelta = (currentPoint.x - lastPoint.x) * rollDegreesPerPixelMoved;
             if (currentPoint.y < center.y) {
                 rollDelta = -rollDelta;
             }
-            return {rollDelta};
+            return aroundDragStart({rollDelta}, getAround?.() ?? 'center', startPoint);
         },
         // prevent browser context menu when necessary; we don't allow it with roll
         // because we can't discern roll gesture start from contextmenu on Mac
