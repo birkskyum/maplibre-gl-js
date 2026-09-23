@@ -609,6 +609,7 @@ export class HandlerManager {
             panDelta,
         });
 
+        this._camera.liftCameraAboveTerrain(tr);
         this._camera.applyUpdatedTransform(tr);
 
         this._map._update();

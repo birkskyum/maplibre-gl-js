@@ -351,6 +351,50 @@ describe('Terrain changing under and around a gesture', () => {
         expect(map.getZoom()).toBe(13);
     });
 
+    test('a drag over terrain that rises by 1000 m lifts the camera by 1000 m with the pitch and zoom unchanged, and keeps that height when the terrain drops', async () => {
+        const map = await createMapOverTerrain(60);
+        vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
+        const groundUnderCamera = vi.spyOn(map.terrain, 'getElevationForLngLatZoom').mockReturnValue(10000);
+
+        simulate.mousedown(map.getCanvas(), {buttons: 1, button: 0, clientX: 100, clientY: 150});
+        simulate.mousemove(window.document.body, {buttons: 1, clientX: 100, clientY: 160});
+        map._renderTaskQueue.run();
+        const elevationOverTheFirstRise = map.getCenterElevation();
+        groundUnderCamera.mockReturnValue(11000);
+        simulate.mousemove(window.document.body, {buttons: 1, clientX: 100, clientY: 170});
+        map._renderTaskQueue.run();
+        const elevationOverTheSecondRise = map.getCenterElevation();
+        groundUnderCamera.mockReturnValue(0);
+        simulate.mousemove(window.document.body, {buttons: 1, clientX: 100, clientY: 180});
+        map._renderTaskQueue.run();
+
+        expect(elevationOverTheFirstRise).toBeCloseTo(4323.6, 1);
+        expect(elevationOverTheSecondRise).toBeCloseTo(5323.6, 1);
+        expect(map.getCenterElevation()).toBeCloseTo(5323.6, 1);
+        expect(map.getPitch()).toBe(60);
+        expect(map.getZoom()).toBe(11);
+    });
+
+    test('a DEM tile that lands over the camera during a held drag lifts the camera out of it with the pitch and zoom unchanged', async () => {
+        const map = await createMapOverTerrain(60);
+        vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);
+        const groundUnderCamera = vi.spyOn(map.terrain, 'getElevationForLngLatZoom').mockReturnValue(0);
+
+        simulate.mousedown(map.getCanvas(), {buttons: 1, button: 0, clientX: 100, clientY: 150});
+        simulate.mousemove(window.document.body, {buttons: 1, clientX: 100, clientY: 160});
+        map._renderTaskQueue.run();
+        groundUnderCamera.mockReturnValue(10000);
+        demTileLands(map);
+        const elevationOverTheFirstTile = map.getCenterElevation();
+        groundUnderCamera.mockReturnValue(11000);
+        demTileLands(map);
+
+        expect(elevationOverTheFirstTile).toBeCloseTo(4323.6, 1);
+        expect(map.getCenterElevation()).toBeCloseTo(5323.6, 1);
+        expect(map.getPitch()).toBe(60);
+        expect(map.getZoom()).toBe(11);
+    });
+
     test('the gesture after terrain changes at rest starts from the camera as rendered, after a click, a DEM tile landing and the per-frame clamp moving it further', async () => {
         const map = await createMapOverTerrain(0);
         const terrainElevation = vi.spyOn(map.terrain, 'getElevationForLngLat').mockReturnValue(0);

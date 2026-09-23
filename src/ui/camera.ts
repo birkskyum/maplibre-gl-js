@@ -19,6 +19,9 @@ import type {TaskID} from '../util/task_queue.ts';
 import type {PaddingOptions} from '../geo/edge_insets.ts';
 import type {ICameraHelper, MapControlsDeltas} from '../geo/projection/camera_helper.ts';
 
+/** Upper limit in meters of the clearance a gesture keeps between the camera and the terrain under it. */
+const MAX_TERRAIN_CLEARANCE = 50;
+
 /**
  * A [Point](https://github.com/mapbox/point-geometry) or an array of two numbers representing `x` and `y` screen coordinates in pixels.
  *
@@ -913,14 +916,17 @@ export class Camera extends Evented<MapEventType> {
      * Applies a change of the terrain under the center to the transform: the terrain was set or
      * removed, or a DEM tile landed. The center keeps its place and the camera moves with the
      * center's elevation, as it does on every rendered frame while nothing holds the elevation.
-     * While a gesture or an ease holds it this does nothing: the camera stays where the user put
-     * it and the hold's end re-solves zoom and center onto the new terrain without moving it.
+     * While a gesture or an ease holds it, the camera stays where the user put it, lifted only if
+     * the new terrain covers it, and the hold's end re-solves zoom and center onto the new terrain
+     * without moving it.
      * Nothing is in flight when this writes, so it writes the rendered transform, like the
      * per-frame clamp; a requested camera state created here would outlive the call and the
      * next gesture would start from it.
      */
     applyTerrainChange(): void {
         if (this.elevationFreeze) {
+            const tr = this._requestedCameraState;
+            if (tr && this.liftCameraAboveTerrain(tr)) this.applyUpdatedTransform(tr);
             return;
         }
         const tr = this.transform;
@@ -972,6 +978,20 @@ export class Camera extends Evented<MapEventType> {
             };
         }
         return {};
+    }
+
+    /**
+     * @internal
+     * Raises the center elevation a gesture holds until the camera clears the terrain under it by the
+     * near plane distance, at most 50 m, keeping pitch and zoom. Returns whether it raised the camera.
+     */
+    liftCameraAboveTerrain(tr: ITransform): boolean {
+        if (!this.terrain) return false;
+        const clearance = Math.min(MAX_TERRAIN_CLEARANCE, tr.nearZ / tr.pixelsPerMeter);
+        const shortfall = this.terrain.getElevationForLngLatZoom(tr.getCameraLngLat(), tr.zoom) + clearance - tr.getCameraAltitude();
+        const lifted = shortfall > 0;
+        if (lifted) tr.setElevation(tr.elevation + shortfall);
+        return lifted;
     }
 
     /**
