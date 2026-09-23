@@ -867,6 +867,16 @@ describe('MercatorTransform.screenTerrainPointToMercatorCoordinate', () => {
         expect(crossed.size).toBe(2);
     });
 
+    test('picks terrain closer to the camera than twice the near plane distance', () => {
+        const transform = createMercatorTransform(new LngLat(0, 0), 16, 60);
+        const terrain = createDEMTerrain([new OverscaledTileID(0, 0, 0, 0, 0)], createDEM(() => 449));
+
+        const result = transform.screenTerrainPointToMercatorCoordinate(transform.centerPoint, terrain);
+
+        expect(result).not.toBeNull();
+        expect(result.z).toBeCloseTo(449, 6);
+    });
+
     test('returns null when the ray never crosses the terrain surface', () => {
         // Into the sky.
         const terrain = createDEMTerrain([new OverscaledTileID(0, 0, 0, 0, 0)], createDEM(() => 0));
