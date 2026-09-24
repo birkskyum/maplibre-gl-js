@@ -9,6 +9,9 @@ layout(location = 0) in vec2 a_pos;
 
 out vec3 v_pos0;
 out vec3 v_pos1;
+#ifdef GLOBE
+out vec2 v_pole;
+#endif
 
 void main() {
     // in a_pos always forms a (sometimes subdivided) quad in 0..EXTENT, but actual corner coords may be different.
@@ -49,6 +52,7 @@ void main() {
     if (a_pos.y > 32766.5) {
         texturePos.y = 1.0;
     }
+    v_pole = poleCapPosition(a_pos);
     #endif
 
     // Weighting the texture coordinates by the reciprocal of the denominator is what makes the

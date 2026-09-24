@@ -11,6 +11,7 @@ import {
 } from '../program/raster_program.ts';
 import {EXTENT} from '../../data/extent.ts';
 import {FadingDirections} from '../../tile/tile.ts';
+import {bindPoleTextures, bordersPole, createPoleTextures, updatePoleTextures} from '../pole_textures.ts';
 import Point from '@mapbox/point-geometry';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
 
@@ -42,6 +43,10 @@ const cornerCoords = [
 ];
 
 export function drawRaster(painter: Painter, tileManager: TileManager, layer: RasterStyleLayer, tileIDs: OverscaledTileID[], renderContext: RenderContext): void {
+    if (renderContext.currentPass === 'offscreen') {
+        preparePoleTextures(painter, tileManager, layer, tileIDs);
+        return;
+    }
     if (renderContext.currentPass !== 'translucent') return;
     if (layer.paint.get('raster-opacity') === 0) return;
     if (!tileIDs.length) return;
@@ -76,6 +81,16 @@ export function drawRaster(painter: Painter, tileManager: TileManager, layer: Ra
     }
 }
 
+function preparePoleTextures(painter: Painter, tileManager: TileManager, layer: RasterStyleLayer, tileIDs: OverscaledTileID[]): void {
+    if (!painter.style.projection.useSubdivision || painter.style.map.terrain || tileManager.getSource() instanceof ImageSource) return;
+    layer.poleTextures ??= createPoleTextures(painter.context);
+    const edges = tileIDs
+        .filter(tileID => bordersPole(tileID.canonical) && tileManager.getTile(tileID).texture)
+        .map(tileID => ({tileID: tileID.canonical, texture: tileManager.getTile(tileID).texture}));
+    if (!edges.length) return;
+    updatePoleTextures(painter.context, layer.poleTextures, edges);
+}
+
 function drawTiles(
     painter: Painter,
     tileManager: TileManager,
@@ -104,6 +119,8 @@ function drawTiles(
     const textureFilter = useNearest ?  gl.NEAREST : gl.LINEAR;
     const fadeDuration = layer.paint.get('raster-fade-duration');
     const isTerrain = !!painter.style.map.terrain;
+
+    if (layer.poleTextures) bindPoleTextures(context, layer.poleTextures);
 
     // Draw all tiles
     for (const coord of coords) {

@@ -1,0 +1,25 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "height": 256,
+      "width": 256
+    }
+  },
+  "sky": {"atmosphere-blend": 0.0},
+  "center": [0.0, 89.0],
+  "zoom": 1.5,
+  "projection": {"type": "globe"},
+  "sources": {
+    "source": {
+      "type": "raster",
+      "tiles": ["local://tiles/stripes.png"],
+      "maxzoom": 2,
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {"id": "background", "type": "background", "paint": {"background-color": "white"}},
+    {"id": "raster", "type": "raster", "source": "source", "paint": {"raster-fade-duration": 0}}
+  ]
+}
