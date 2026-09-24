@@ -66,7 +66,8 @@ export interface ProjectionTransform extends Pick<ITransform,
     'getCameraAltitude' | 'getCameraLngLat' | 'calculateCameraOptionsFromTo' | 'getRayDirectionFromPixel' |
     'calculateFogMatrix' | 'getProjectionData' | 'isLocationOccluded' | 'getPixelScale' | 'getCircleRadiusCorrection' |
     'getPitchedTextCorrection' | 'transformLightDirection' | 'projectTileCoordinates' | 'getProjectionDataForCustomLayer' |
-    'getFastPathSimpleProjectionMatrix' | 'setTransitionState' | 'populateCache' | 'recalculateZoomAndCenter' | 'setLocationAtPoint'> {
+    'getFastPathSimpleProjectionMatrix' | 'setTransitionState' | 'populateCache' | 'recalculateZoomAndCenter' | 'setLocationAtPoint' |
+    'nearZ' | 'farZ'> {
     /**
      * Updates the matrices after the transform's camera state changed.
      */
@@ -77,6 +78,14 @@ export interface ProjectionTransform extends Pick<ITransform,
      */
     clone(transform: Transform): ProjectionTransform;
 }
+
+/**
+ * The depth range of a projection, from the near to the far clipping plane, in the units of its projection matrix.
+ */
+export type NearFarZ = {
+    nearZ: number;
+    farZ: number;
+};
 
 export type TransformOptions = {
     /**
@@ -166,9 +175,7 @@ export class Transform implements ITransform {
     _clipSpaceToPixelsMatrix: mat4;
     _cameraToCenterDistance: number;
 
-    _nearZ: number;
-    _farZ: number;
-    _autoCalculateNearFarZ: boolean;
+    _nearFarZOverride: NearFarZ | null;
 
     _constrainOverride: TransformConstrainFunction;
 
@@ -204,7 +211,7 @@ export class Transform implements ITransform {
         this._unmodified = true;
         this._edgeInsets = new EdgeInsets();
         this._minElevationForCurrentTile = 0;
-        this._autoCalculateNearFarZ = true;
+        this._nearFarZOverride = null;
         this._projection = createProjection(this);
     }
 
@@ -238,9 +245,7 @@ export class Transform implements ITransform {
         this._maxPitch = thatI.maxPitch;
         this._renderWorldCopies = thatI.renderWorldCopies;
         this._cameraToCenterDistance = thatI.cameraToCenterDistance;
-        this._nearZ = thatI.nearZ;
-        this._farZ = thatI.farZ;
-        this._autoCalculateNearFarZ = thatI.autoCalculateNearFarZ;
+        this._nearFarZOverride = thatI.autoCalculateNearFarZ ? null : {nearZ: thatI.nearZ, farZ: thatI.farZ};
         if (constrain) {
             this.constrainInternal();
         }
@@ -467,17 +472,17 @@ export class Transform implements ITransform {
 
     get cameraToCenterDistance(): number { return this._cameraToCenterDistance; }
 
-    get nearZ(): number { return this._nearZ; }
-    get farZ(): number { return this._farZ; }
-    get autoCalculateNearFarZ(): boolean { return this._autoCalculateNearFarZ; }
+    get autoCalculateNearFarZ(): boolean { return this._nearFarZOverride === null; }
+    /**
+     * The depth range set with {@link overrideNearFarZ}, which the projection part uses instead of its own, or null.
+     */
+    get nearFarZOverride(): NearFarZ | null { return this._nearFarZOverride; }
     overrideNearFarZ(nearZ: number, farZ: number): void {
-        this._autoCalculateNearFarZ = false;
-        this._nearZ = nearZ;
-        this._farZ = farZ;
+        this._nearFarZOverride = {nearZ, farZ};
         this._calcMatrices();
     }
     clearNearFarZOverride(): void {
-        this._autoCalculateNearFarZ = true;
+        this._nearFarZOverride = null;
         this._calcMatrices();
     }
 
@@ -739,6 +744,12 @@ export class Transform implements ITransform {
     }
     get cameraPosition(): vec3 {
         return this._projection.cameraPosition;
+    }
+    get nearZ(): number {
+        return this._projection.nearZ;
+    }
+    get farZ(): number {
+        return this._projection.farZ;
     }
     getVisibleUnwrappedCoordinates(tileID: CanonicalTileID): UnwrappedTileID[] {
         return this._projection.getVisibleUnwrappedCoordinates(tileID);
