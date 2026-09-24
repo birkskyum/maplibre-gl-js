@@ -1,6 +1,6 @@
 import {describe, test, expect, vi} from 'vitest';
 import {createRenderContext, getProjectionDataForTile, getTerrainDataForTile} from './render_context.ts';
-import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
+import {createMercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {MercatorProjection} from '../geo/projection/mercator_projection.ts';
 import {createProjectionFromName} from '../geo/projection/projection_factory.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
@@ -10,7 +10,7 @@ import type {Terrain} from './terrain.ts';
 describe('getProjectionDataForTile', () => {
     test('selects projection options for regular and terrain-texture draws', () => {
         const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
+        const transform = createMercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
         transform.resize(512, 512);
         const renderContext = createRenderContext(transform, new MercatorProjection(), null);
         const projectionDataSpy = vi.spyOn(transform, 'getProjectionData');
@@ -38,7 +38,7 @@ describe('getTerrainDataForTile', () => {
 
     test('uses terrain data for regular Mercator draws', () => {
         const {tileID, terrainData, getTerrainData, terrain} = mockTerrainData();
-        const renderContext = createRenderContext(new MercatorTransform(), new MercatorProjection(), terrain);
+        const renderContext = createRenderContext(createMercatorTransform(), new MercatorProjection(), terrain);
 
         expect(getTerrainDataForTile(renderContext, tileID)).toBe(terrainData);
         expect(getTerrainData).toHaveBeenCalledWith(tileID);
@@ -46,7 +46,7 @@ describe('getTerrainDataForTile', () => {
 
     test('skips terrain data for Mercator render-to-texture draws', () => {
         const {tileID, getTerrainData, terrain} = mockTerrainData();
-        const renderContext = createRenderContext(new MercatorTransform(), new MercatorProjection(), terrain);
+        const renderContext = createRenderContext(createMercatorTransform(), new MercatorProjection(), terrain);
         renderContext.isRenderingToTexture = true;
 
         expect(getTerrainDataForTile(renderContext, tileID)).toBeNull();

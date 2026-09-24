@@ -1,7 +1,7 @@
 import {describe, expect, test} from 'vitest';
 import {LngLat} from '../lng_lat.ts';
 import {getAtmosphereAltitudeBlend, getGlobeCenterInViewSpace, getGlobeCircumferencePixels, getGlobeRadiusPixels, getZoomAdjustment, globeDistanceOfLocationsPixels} from './globe_utils.ts';
-import {GlobeTransform} from './globe_transform.ts';
+import {createGlobeTransform} from './globe_transform.ts';
 
 describe('globe utils', () => {
     const digitsPrecision = 10;
@@ -50,7 +50,7 @@ describe('globe utils', () => {
     });
 
     test('getGlobeCenterInViewSpace', () => {
-        const transform = new GlobeTransform();
+        const transform = createGlobeTransform();
         transform.resize(256, 512);
         transform.setMaxPitch(85);
         transform.setCenter(new LngLat(11.64, 47.55));

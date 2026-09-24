@@ -10,7 +10,7 @@ import {createSymbolBucket, createSymbolIconBucket, createSymbolStyleLayer} from
 import {RGBAImage} from '../../util/image.ts';
 import {ImagePosition} from '../../render/image_atlas.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
-import {MercatorTransform} from '../../geo/projection/mercator_transform.ts';
+import {createMercatorTransform} from '../../geo/projection/mercator_transform.ts';
 import {createPopulateOptions, loadVectorTile} from '../../../test/unit/lib/tile.ts';
 import {SymbolBucket} from './symbol_bucket.ts';
 import glyphs from '../../../test/unit/assets/fontstack-glyphs.json' with {type: 'json'};
@@ -21,7 +21,7 @@ import type {StyleImage} from '../../style/style_image.ts';
 import type {GlyphMap} from '../../style/style_glyph.ts';
 
 const collisionBoxArray = new CollisionBoxArray();
-const transform = new MercatorTransform();
+const transform = createMercatorTransform();
 transform.resize(100, 100);
 
 const glyphsByCluster = {
