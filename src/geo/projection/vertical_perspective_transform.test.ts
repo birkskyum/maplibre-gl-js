@@ -5,11 +5,13 @@ import {LngLat, earthRadius} from '../lng_lat.ts';
 import {MercatorCoordinate} from '../mercator_coordinate.ts';
 import {OverscaledTileID} from '../../tile/tile_id.ts';
 import {createDEM, createDEMTerrain} from '../../util/test/util.ts';
-import {type VerticalPerspectiveTransform, createVerticalPerspectiveTransform} from './vertical_perspective_transform.ts';
+import {createVerticalPerspectiveTransform} from './vertical_perspective_transform.ts';
 import {createMercatorTransform} from './mercator_transform.ts';
 
+import type {Transform} from '../transform.ts';
+
 describe('VerticalPerspectiveTransform.screenTerrainPointToMercatorCoordinate', () => {
-    function createTransform(center: LngLat, zoom: number): VerticalPerspectiveTransform {
+    function createTransform(center: LngLat, zoom: number): Transform {
         const transform = createVerticalPerspectiveTransform();
         transform.resize(512, 512);
         transform.setCenter(center);
@@ -323,5 +325,14 @@ describe('VerticalPerspectiveTransform.isLocationOccluded', () => {
         transform.resize(512, 512);
 
         expect(transform.isLocationOccluded(new LngLat(0, 0.01), terrain)).toBe(false);
+    });
+});
+
+describe('VerticalPerspectiveTransform resize', () => {
+    test('does not constrain the center when constrainTransform is false', () => {
+        const transform = createVerticalPerspectiveTransform();
+        transform.setCenter(new LngLat(0, 89));
+        transform.resize(640, 480, false);
+        expect(transform.center.lat).toBe(89);
     });
 });

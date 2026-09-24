@@ -1,16 +1,17 @@
 import {beforeEach, describe, expect, test} from 'vitest';
 import {Placement, RetainedQueryData} from './placement.ts';
-import {type MercatorTransform, createMercatorTransform} from '../geo/projection/mercator_transform.ts';
+import {createMercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {SymbolStyleLayer} from '../style/style_layer/symbol_style_layer.ts';
 import {CollisionBoxArray, SymbolInstanceArray} from '../data/array_types.g.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {FeatureIndex} from '../data/feature_index.ts';
 
 import type {EvaluationParameters} from '../style/evaluation_parameters.ts';
+import type {Transform} from '../geo/transform.ts';
 
 describe('placement', () => {
     let placement: Placement;
-    let transform: MercatorTransform;
+    let transform: Transform;
     beforeEach(() => {
         transform = createMercatorTransform();
         transform.resize(512, 512);

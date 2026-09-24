@@ -9,14 +9,14 @@ import {type PointProjection, xyTransformMat4} from '../../symbol/projection.ts'
 import {LngLatBounds} from '../lng_lat_bounds.ts';
 import {getMercatorHorizon, projectToWorldCoordinates, unprojectFromWorldCoordinates, calculateTileMatrix, maxMercatorHorizonAngle, cameraMercatorCoordinateFromCenterAndRotation} from './mercator_utils.ts';
 import {EXTENT} from '../../data/extent.ts';
-import {TransformHelper} from '../transform_helper.ts';
+import {Transform} from '../transform.ts';
 import {MercatorCoveringTilesDetailsProvider} from './mercator_covering_tiles_details_provider.ts';
 import {Frustum} from '../../util/primitives/frustum.ts';
 import {fastInvertProjMat4} from '../../util/fast_maths.ts';
 import {bisect, sampleAt, isBelowTerrainSample, TERRAIN_OCCLUSION_MARGIN, type Terrain, type TerrainCoverageIndex, type TerrainSample} from '../../render/terrain.ts';
 
-import type {CameraOptionsFromTo, IReadonlyTransform, ITransform, TransformConstrainFunction} from '../transform_interface.ts';
-import type {TransformOptions} from '../transform_helper.ts';
+import type {CameraOptionsFromTo, TransformConstrainFunction} from '../transform_interface.ts';
+import type {ProjectionTransform, TransformOptions} from '../transform.ts';
 import type {PaddingOptions} from '../edge_insets.ts';
 import type {CustomLayerProjectionData, ProjectionDataParams, RendererProjectionData} from './projection_data.ts';
 import type {CoveringTilesDetailsProvider} from './covering_tiles_details_provider.ts';
@@ -50,8 +50,12 @@ type MercatorRay = {
     worldSize: number;
 };
 
-export class MercatorTransform implements ITransform {
-    private _helper: TransformHelper;
+/**
+ * @internal
+ * The mercator part of a {@link Transform}.
+ */
+export class MercatorTransform implements ProjectionTransform {
+    private _helper: Transform;
 
     //
     // Implementation of transform getters and setters
@@ -146,9 +150,6 @@ export class MercatorTransform implements ITransform {
     }
     clearNearFarZOverride(): void {
         this._helper.clearNearFarZOverride();
-    }
-    getCameraQueryGeometry(queryGeometry: Point[]): Point[] {
-        return this._helper.getCameraQueryGeometry(this.getCameraPoint(), queryGeometry);
     }
 
     get tileSize(): number {
@@ -274,27 +275,15 @@ export class MercatorTransform implements ITransform {
     private _coveringTilesDetailsProvider;
 
     /**
-     * @param options - Initial state. Ignored when `sharedHelper` is given, which already carries it.
-     * @param sharedHelper - Camera to use instead of owning one, so that a composing transform such as
-     * {@link GlobeTransform} keeps a single copy of the state rather than one per child. Its owner then drives
-     * {@link _calcMatrices}, because a helper has only one `calcMatrices` callback.
+     * @param transform - The transform whose camera state this part derives its matrices from.
      */
-    constructor(options?: TransformOptions, sharedHelper?: TransformHelper) {
-        this._helper = sharedHelper ?? new TransformHelper({
-            calcMatrices: () => this._calcMatrices(),
-            defaultConstrain: (center, zoom) => { return this.defaultConstrain(center, zoom); }
-        }, options);
+    constructor(transform: Transform) {
+        this._helper = transform;
         this._coveringTilesDetailsProvider = new MercatorCoveringTilesDetailsProvider();
     }
 
-    public clone(): ITransform {
-        const clone = new MercatorTransform();
-        clone.apply(this, false);
-        return clone;
-    }
-
-    public apply(that: IReadonlyTransform, constrain: boolean): void {
-        this._helper.apply(that, constrain);
+    clone(transform: Transform): MercatorTransform {
+        return new MercatorTransform(transform);
     }
 
     public get cameraPosition(): vec3 { return this._cameraPosition; }
@@ -339,8 +328,8 @@ export class MercatorTransform implements ITransform {
     recalculateZoomAndCenter(terrain?: Terrain): void {
         // find position the camera is looking on
         const center = this.screenPointToLocation(this.centerPoint, terrain);
-        const elevation = terrain ? terrain.getElevationForLngLat(center, this) : 0;
-        this._helper.recalculateZoomAndCenter(elevation);
+        const elevation = terrain ? terrain.getElevationForLngLat(center, this._helper) : 0;
+        this._helper.recalculateZoomAndCenterAtElevation(elevation);
     }
 
     /**
@@ -367,7 +356,7 @@ export class MercatorTransform implements ITransform {
 
     locationToScreenPoint(lnglat: LngLat, terrain?: Terrain): Point {
         return terrain ?
-            this.coordinatePoint(MercatorCoordinate.fromLngLat(lnglat), terrain.getElevationForLngLat(lnglat, this), this._pixelMatrix3D) :
+            this.coordinatePoint(MercatorCoordinate.fromLngLat(lnglat), terrain.getElevationForLngLat(lnglat, this._helper), this._pixelMatrix3D) :
             this.coordinatePoint(MercatorCoordinate.fromLngLat(lnglat));
     }
 
@@ -756,11 +745,11 @@ export class MercatorTransform implements ITransform {
     }
 
     /**
-     * @param calculateNearFarZ - Whether to compute the near/far Z range, or leave the range the helper already
-     * holds. Defaults to {@link autoCalculateNearFarZ}; a composing transform such as {@link GlobeTransform}
+     * @param calculateNearFarZ - Whether to compute the near/far Z range, or leave the range the transform already
+     * holds. Defaults to {@link autoCalculateNearFarZ}; a composing part such as {@link GlobeTransform}
      * overrides it so that its two children share a single depth range.
      */
-    _calcMatrices(calculateNearFarZ: boolean = this._helper.autoCalculateNearFarZ): void {
+    calcMatrices(calculateNearFarZ: boolean = this._helper.autoCalculateNearFarZ): void {
         const offset = this.centerOffset;
         const point = projectToWorldCoordinates(this.worldSize, this.center);
         const x = point.x, y = point.y;
@@ -914,7 +903,7 @@ export class MercatorTransform implements ITransform {
         if (!terrain?.getCoverageIndex()) return false;
 
         const location = MercatorCoordinate.fromLngLat(lngLat);
-        elevation ??= terrain.getElevationForLngLat(lngLat, this);
+        elevation ??= terrain.getElevationForLngLat(lngLat, this._helper);
         const clip = this._coordinateClipPoint(location, elevation, this._pixelMatrix3D);
         const w = clip[3];
         if (w <= 0 || clip[2] > w) return true;
@@ -1007,8 +996,8 @@ export class MercatorTransform implements ITransform {
 /**
  * Creates a transform for the mercator projection.
  */
-export function createMercatorTransform(options?: TransformOptions): MercatorTransform {
-    return new MercatorTransform(options);
+export function createMercatorTransform(options?: TransformOptions): Transform {
+    return new Transform((transform) => new MercatorTransform(transform), options);
 }
 
 function mercatorSampleAt(ray: MercatorRay, t: number): TerrainSample {
