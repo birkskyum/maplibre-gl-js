@@ -7,6 +7,7 @@ import {
     hillshadeUniformPrepareValues
 } from '../program/hillshade_program.ts';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
+import {bordersPole, PoleTextures} from '../pole_textures.ts';
 
 import type {ColorMode} from '../color_mode.ts';
 import type {Painter} from '../../render/painter.ts';
@@ -27,6 +28,7 @@ export function drawHillshade(painter: Painter, tileManager: TileManager, layer:
     if (renderContext.currentPass === 'offscreen') {
         // Prepare tiles
         prepareHillshade(painter, tileManager, tileIDs, layer, depthMode, StencilMode.disabled, colorMode);
+        preparePoleTextures(painter, tileManager, layer, tileIDs, renderContext);
         context.viewport.set([0, 0, painter.width, painter.height]);
     } else if (renderContext.currentPass === 'translucent') {
         // Globe (or any projection with subdivision) needs two-pass rendering to avoid artifacts when rendering texture tiles.
@@ -62,6 +64,7 @@ function renderHillshade(
     const defines = [`#define NUM_ILLUMINATION_SOURCES ${layer.paint.get('hillshade-highlight-color').values.length}`];
     const program = painter.useProgram('hillshade', null, false, defines);
     const align = !painter.options.moving;
+    layer.poleTextures?.bind();
 
     for (const coord of coords) {
         const tile = tileManager.getTile(coord);
@@ -81,6 +84,20 @@ function renderHillshade(
         program.draw(context, gl.TRIANGLES, depthMode, stencilModes[coord.overscaledZ], colorMode, CullFaceMode.backCCW,
             hillshadeUniformValues(painter, tile, layer), terrainData, projectionData, layer.id, mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }
+}
+
+function preparePoleTextures(painter: Painter, tileManager: TileManager, layer: HillshadeStyleLayer, tileIDs: OverscaledTileID[], renderContext: RenderContext): void {
+    if (!renderContext.isRenderingGlobe || renderContext.terrain) return;
+    layer.poleTextures ??= new PoleTextures(painter.context);
+    const edges = tileIDs
+        .filter(tileID => bordersPole(tileID.canonical) && tileManager.getTile(tileID).fbo)
+        .map(tileID => {
+            const {colorAttachment, width, height} = tileManager.getTile(tileID).fbo;
+            const size: [number, number] = [width, height];
+            return {tileID: tileID.canonical, texture: {texture: colorAttachment.get(), size, useMipmap: false}};
+        });
+    if (!edges.length) return;
+    layer.poleTextures.update(edges, false, 1);
 }
 
 // hillshade rendering is done in two steps. the prepare step first calculates the slope of the terrain in the x and y

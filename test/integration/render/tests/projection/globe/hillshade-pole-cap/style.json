@@ -1,0 +1,45 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "Tests that the hillshade pole cap blurs the edge row of the tiles toward the pole and fades out.",
+      "height": 256,
+      "width": 256
+    }
+  },
+  "sky": {
+    "atmosphere-blend": 0
+  },
+  "center": [
+    0,
+    89
+  ],
+  "zoom": 1.5,
+  "projection": {
+    "type": "globe"
+  },
+  "sources": {
+    "source": {
+      "type": "raster-dem",
+      "tiles": [
+        "local://tiles/ridges.terrain.png"
+      ],
+      "maxzoom": 2,
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "white"
+      }
+    },
+    {
+      "id": "hillshade",
+      "type": "hillshade",
+      "source": "source"
+    }
+  ]
+}

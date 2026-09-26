@@ -31,6 +31,9 @@ export type RasterUniformsType = {
     'u_spin_weights': Uniform3f;
     'u_coords_top': Uniform4f;
     'u_coords_bottom': Uniform4f;
+    'u_pole_north': Uniform1i;
+    'u_pole_south': Uniform1i;
+    'u_pole_coverage': Uniform1i;
 };
 
 const rasterUniforms = (context: Context, locations: UniformLocations): RasterUniformsType => ({
@@ -48,7 +51,10 @@ const rasterUniforms = (context: Context, locations: UniformLocations): RasterUn
     'u_contrast_factor': new Uniform1f(context, locations.u_contrast_factor),
     'u_spin_weights': new Uniform3f(context, locations.u_spin_weights),
     'u_coords_top': new Uniform4f(context, locations.u_coords_top),
-    'u_coords_bottom': new Uniform4f(context, locations.u_coords_bottom)
+    'u_coords_bottom': new Uniform4f(context, locations.u_coords_bottom),
+    'u_pole_north': new Uniform1i(context, locations.u_pole_north),
+    'u_pole_south': new Uniform1i(context, locations.u_pole_south),
+    'u_pole_coverage': new Uniform1i(context, locations.u_pole_coverage)
 });
 
 const rasterUniformValues = (
@@ -80,7 +86,10 @@ const rasterUniformValues = (
     'u_contrast_factor': contrastFactor(layer.paint.get('raster-contrast')),
     'u_spin_weights': spinWeights(layer.paint.get('raster-hue-rotate')),
     'u_coords_top': [cornerCoords[0].x, cornerCoords[0].y, cornerCoords[1].x, cornerCoords[1].y],
-    'u_coords_bottom': [cornerCoords[3].x, cornerCoords[3].y, cornerCoords[2].x, cornerCoords[2].y]
+    'u_coords_bottom': [cornerCoords[3].x, cornerCoords[3].y, cornerCoords[2].x, cornerCoords[2].y],
+    'u_pole_north': 4,
+    'u_pole_south': 5,
+    'u_pole_coverage': 6
 });
 
 function spinWeights(angle) {

@@ -26,6 +26,9 @@ export type TerrainUniformsType = {
     'u_horizon_color': UniformColor;
     'u_horizon_fog_blend': Uniform1f;
     'u_is_globe_mode': Uniform1f;
+    'u_pole_north': Uniform1i;
+    'u_pole_south': Uniform1i;
+    'u_pole_coverage': Uniform1i;
 };
 
 export type TerrainDepthUniformsType = {
@@ -46,7 +49,10 @@ const terrainUniforms = (context: Context, locations: UniformLocations): Terrain
     'u_fog_ground_blend_opacity': new Uniform1f(context, locations.u_fog_ground_blend_opacity),
     'u_horizon_color': new UniformColor(context, locations.u_horizon_color),
     'u_horizon_fog_blend': new Uniform1f(context, locations.u_horizon_fog_blend),
-    'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode)
+    'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode),
+    'u_pole_north': new Uniform1i(context, locations.u_pole_north),
+    'u_pole_south': new Uniform1i(context, locations.u_pole_south),
+    'u_pole_coverage': new Uniform1i(context, locations.u_pole_coverage)
 });
 
 const terrainDepthUniforms = (context: Context, locations: UniformLocations): TerrainDepthUniformsType => ({
@@ -68,7 +74,10 @@ const terrainUniformValues = (
     'u_fog_ground_blend_opacity': isGlobeMode ? 0 : (sky ? sky.calculateFogBlendOpacity(pitch) : 0),
     'u_horizon_color': sky ? sky.properties.get('horizon-color') : Color.white,
     'u_horizon_fog_blend': sky ? sky.properties.get('horizon-fog-blend') : 1,
-    'u_is_globe_mode': isGlobeMode ? 1 : 0
+    'u_is_globe_mode': isGlobeMode ? 1 : 0,
+    'u_pole_north': 4,
+    'u_pole_south': 5,
+    'u_pole_coverage': 6
 });
 
 const terrainDepthUniformValues = (

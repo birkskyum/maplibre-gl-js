@@ -9,6 +9,13 @@ uniform bool u_is_globe_mode;
 in vec2 v_texture_pos;
 in float v_fog_depth;
 
+#ifdef GLOBE
+uniform sampler2D u_pole_north;
+uniform sampler2D u_pole_south;
+uniform sampler2D u_pole_coverage;
+in vec2 v_pole;
+#endif
+
 const float gamma = 2.2;
 
 vec4 gammaToLinear(vec4 color) {
@@ -21,6 +28,13 @@ vec4 linearToGamma(vec4 color) {
 
 void main() {
     vec4 surface_color = texture(u_texture, vec2(v_texture_pos.x, 1.0 - v_texture_pos.y));
+#ifdef GLOBE
+    if (v_pole.y != 0.0) {
+        float capWeight;
+        vec4 capColor = poleCapColor(v_pole, u_pole_north, u_pole_south, u_pole_coverage, capWeight);
+        surface_color = mix(surface_color, capColor, capWeight);
+    }
+#endif
 
     // Skip fog blending in globe mode or when fog opacity is zero
     if (!u_is_globe_mode && u_fog_ground_blend_opacity > 0.0 && v_fog_depth > u_fog_ground_blend) {

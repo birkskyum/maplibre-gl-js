@@ -3,6 +3,9 @@ uniform mat4 u_matrix;
 layout(location = 0) in vec2 a_pos;
 
 out vec2 v_pos;
+#ifdef GLOBE
+out vec2 v_pole;
+#endif
 
 void main() {
     gl_Position = projectTile(a_pos, a_pos);
@@ -15,4 +18,7 @@ void main() {
     if (a_pos.y > 32766.5) {
         v_pos.y = 1.0;
     }
+#ifdef GLOBE
+    v_pole = poleCapPosition(a_pos);
+#endif
 }

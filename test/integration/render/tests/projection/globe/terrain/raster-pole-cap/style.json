@@ -1,0 +1,60 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "Tests that the terrain pole cap blurs the edge row of the draped tiles into one color toward the pole.",
+      "height": 256,
+      "width": 256
+    }
+  },
+  "sky": {
+    "atmosphere-blend": 0
+  },
+  "center": [
+    0,
+    89
+  ],
+  "zoom": 1.5,
+  "projection": {
+    "type": "globe"
+  },
+  "terrain": {
+    "source": "terrain",
+    "exaggeration": 1
+  },
+  "sources": {
+    "terrain": {
+      "type": "raster-dem",
+      "tiles": [
+        "local://tiles/zero-elevation-terrain-tile.png"
+      ],
+      "maxzoom": 1,
+      "tileSize": 256
+    },
+    "source": {
+      "type": "raster",
+      "tiles": [
+        "local://tiles/stripes.png"
+      ],
+      "maxzoom": 2,
+      "tileSize": 256
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "white"
+      }
+    },
+    {
+      "id": "raster",
+      "type": "raster",
+      "source": "source",
+      "paint": {
+        "raster-fade-duration": 0
+      }
+    }
+  ]
+}

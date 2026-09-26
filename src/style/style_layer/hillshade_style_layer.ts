@@ -6,6 +6,7 @@ import type {Transitionable, Transitioning, PossiblyEvaluated} from '../properti
 import type {HillshadePaintProps} from './hillshade_style_layer_properties.g.ts';
 import type {Color, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {EvaluationParameters} from '../evaluation_parameters.ts';
+import type {PoleTextures} from '../../webgl/pole_textures.ts';
 
 export const isHillshadeStyleLayer = (layer: StyleLayer): layer is HillshadeStyleLayer => layer.type === 'hillshade';
 
@@ -13,6 +14,7 @@ export class HillshadeStyleLayer extends StyleLayer {
     _transitionablePaint: Transitionable<HillshadePaintProps>;
     _transitioningPaint: Transitioning<HillshadePaintProps>;
     paint: PossiblyEvaluated<HillshadePaintProps, HillshadePaintPropsPossiblyEvaluated>;
+    poleTextures: PoleTextures;
 
     constructor(layer: LayerSpecification, globalState: Record<string, any>) {
         super(layer, properties, globalState);

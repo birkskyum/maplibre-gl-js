@@ -30,6 +30,9 @@ export type HillshadeUniformsType = {
     'u_method': Uniform1i;
     'u_shadows': UniformColorArray;
     'u_highlights': UniformColorArray;
+    'u_pole_north': Uniform1i;
+    'u_pole_south': Uniform1i;
+    'u_pole_coverage': Uniform1i;
 };
 
 export type HillshadePrepareUniformsType = {
@@ -49,7 +52,10 @@ const hillshadeUniforms = (context: Context, locations: UniformLocations): Hills
     'u_accent': new UniformColor(context, locations.u_accent),
     'u_method': new Uniform1i(context, locations.u_method),
     'u_shadows': new UniformColorArray(context, locations.u_shadows),
-    'u_highlights': new UniformColorArray(context, locations.u_highlights)
+    'u_highlights': new UniformColorArray(context, locations.u_highlights),
+    'u_pole_north': new Uniform1i(context, locations.u_pole_north),
+    'u_pole_south': new Uniform1i(context, locations.u_pole_south),
+    'u_pole_coverage': new Uniform1i(context, locations.u_pole_coverage)
 });
 
 const hillshadePrepareUniforms = (context: Context, locations: UniformLocations): HillshadePrepareUniformsType => ({
@@ -103,7 +109,10 @@ const hillshadeUniformValues = (
         'u_accent': accent,
         'u_method': method,
         'u_highlights': illumination.highlightColor,
-        'u_shadows': illumination.shadowColor
+        'u_shadows': illumination.shadowColor,
+        'u_pole_north': 4,
+        'u_pole_south': 5,
+        'u_pole_coverage': 6
     };
 };
 

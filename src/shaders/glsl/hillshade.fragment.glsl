@@ -10,6 +10,13 @@ uniform float u_azimuths[NUM_ILLUMINATION_SOURCES];
 uniform vec4 u_shadows[NUM_ILLUMINATION_SOURCES];
 uniform vec4 u_highlights[NUM_ILLUMINATION_SOURCES];
 
+#ifdef GLOBE
+uniform sampler2D u_pole_north;
+uniform sampler2D u_pole_south;
+uniform sampler2D u_pole_coverage;
+in vec2 v_pole;
+#endif
+
 #define PI 3.141592653589793
 
 #define STANDARD 0
@@ -154,6 +161,13 @@ void main() {
     highp vec2 size = vec2(textureSize(u_image, 0));
     highp vec2 texturePos = (v_pos * (size - 2.0) + 1.0) / size;
     vec4 pixel = texture(u_image, texturePos);
+#ifdef GLOBE
+    if (v_pole.y != 0.0) {
+        float capWeight;
+        vec4 capPixel = poleCapColor(v_pole, u_pole_north, u_pole_south, u_pole_coverage, capWeight);
+        pixel = mix(pixel, capPixel, capWeight);
+    }
+#endif
 
     // We divide the slope by a scale factor based on the cosin of the pixel's approximate latitude
     // to account for mercator projection distortion. see #4807 for details
@@ -174,6 +188,10 @@ void main() {
     } else {
         standard_hillshade(deriv);
     }
+
+#ifdef GLOBE
+    fragColor *= 1.0 - smoothstep(0.0, 0.25, abs(v_pole.y));
+#endif
 
 #ifdef OVERDRAW_INSPECTOR
     fragColor = vec4(1.0);

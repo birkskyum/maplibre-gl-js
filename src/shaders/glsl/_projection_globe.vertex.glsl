@@ -95,6 +95,13 @@ vec3 projectToSphere(vec2 translatedPos, vec2 rawPos) {
     return pos;
 }
 
+// y is 1 at the north pole and -1 at the south pole, x is the Mercator X times 1 - |y| so that it interpolates over a cap.
+vec2 poleCapPosition(vec2 posInTile) {
+    float pole = posInTile.y < -32767.5 ? 1.0 : (posInTile.y > 32766.5 ? -1.0 : 0.0);
+    float mercatorX = u_projection_tile_mercator_coords.x + u_projection_tile_mercator_coords.z * posInTile.x;
+    return vec2(mercatorX * (1.0 - abs(pole)), pole);
+}
+
 vec3 projectToSphere(vec2 posInTile) {
     return projectToSphere(posInTile, vec2(0.0, 0.0));
 }

@@ -2,9 +2,10 @@ import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {drawTerrain} from './draw/draw_terrain.ts';
 import {ImageSource} from '../source/image_source.ts';
 import {RTT_DIFFERENCES, RTTFingerprint, type RTTDifference} from './rtt_fingerprint.ts';
+import {bordersPole, PoleTextures} from './pole_textures.ts';
 
 import type {Tile} from '../tile/tile.ts';
-import type {OverscaledTileID} from '../tile/tile_id.ts';
+import type {CanonicalTileID, OverscaledTileID} from '../tile/tile_id.ts';
 import type {Style} from '../style/style.ts';
 import type {Terrain} from '../render/terrain.ts';
 import type {Texture} from './texture.ts';
@@ -78,6 +79,7 @@ export class RenderToTexture {
      * textures rendered at another zoom, and stale textures beyond the per-frame budget.
      */
     needsFollowUpFrame: boolean = false;
+    poleTextures: PoleTextures;
     constructor(painter: Painter, terrain: Terrain) {
         this.painter = painter;
         this.terrain = terrain;
@@ -226,6 +228,7 @@ export class RenderToTexture {
                 obj.texture.generateMipmap();
             }
             renderContext.isRenderingToTexture = false;
+            if (renderContext.isRenderingGlobe) this._preparePoleTextures(stack);
             drawTerrain(this.painter, this.terrain, this._rttTiles, renderContext);
             this._rttTiles = [];
 
@@ -235,4 +238,30 @@ export class RenderToTexture {
         return false;
     }
 
+    /** Updates and binds the pole textures from the stack's textures, leaving out tiles whose sources don't reach along their whole edge. */
+    _preparePoleTextures(stack: number): void {
+        const context = this.painter.context;
+        const style = this.painter.style;
+        const edgeTiles = this._renderableTiles.filter(tile => bordersPole(tile.tileID.canonical));
+        const sources = new Set(this._stacks[stack].map(id => style.getLayer(id).source).filter(Boolean));
+        const coverage = [...sources]
+            .map(source => edgeTiles.map(tile => coversPoleEdge(this._coordsAscending[source]?.[tile.tileID.key], tile.tileID.canonical)))
+            .filter(covered => covered.includes(true));
+        const edges = edgeTiles
+            .filter((_tile, i) => coverage.every(covered => covered[i]))
+            .map(tile => ({tileID: tile.tileID.canonical, texture: tile.getRTT(stack).texture}));
+        this.poleTextures ??= new PoleTextures(context);
+        if (edges.length) this.poleTextures.update(edges, true, 0);
+        this.poleTextures.bind();
+    }
+}
+
+function coversPoleEdge(coords: OverscaledTileID[] | undefined, tileID: CanonicalTileID): boolean {
+    let covered = 0;
+    for (const {canonical} of coords ?? []) {
+        if (canonical.y !== (tileID.y === 0 ? 0 : (1 << canonical.z) - 1)) continue;
+        const scale = Math.pow(2, tileID.z - canonical.z);
+        covered += Math.max(Math.min((canonical.x + 1) * scale, tileID.x + 1) - Math.max(canonical.x * scale, tileID.x), 0);
+    }
+    return covered >= 1;
 }

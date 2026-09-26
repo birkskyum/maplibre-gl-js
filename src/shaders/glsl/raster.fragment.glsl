@@ -13,6 +13,13 @@ uniform float u_saturation_factor;
 uniform float u_contrast_factor;
 uniform vec3 u_spin_weights;
 
+#ifdef GLOBE
+uniform sampler2D u_pole_north;
+uniform sampler2D u_pole_south;
+uniform sampler2D u_pole_coverage;
+in vec2 v_pole;
+#endif
+
 void main() {
 
     // read and cross-fade colors from the main and parent tiles
@@ -25,6 +32,16 @@ void main() {
         color1.rgb = color1.rgb / color1.a;
     }
     vec4 color = mix(color0, color1, u_fade_t);
+#ifdef GLOBE
+    if (v_pole.y != 0.0) {
+        float capWeight;
+        vec4 capColor = poleCapColor(v_pole, u_pole_north, u_pole_south, u_pole_coverage, capWeight);
+        if (capColor.a > 0.0) {
+            capColor.rgb = capColor.rgb / capColor.a;
+        }
+        color = mix(color, capColor, capWeight);
+    }
+#endif
     color.a *= u_opacity;
     vec3 rgb = color.rgb;
 

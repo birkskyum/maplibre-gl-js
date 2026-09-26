@@ -5,6 +5,9 @@ uniform float u_ele_delta;
 
 out vec2 v_texture_pos;
 out float v_fog_depth;
+#ifdef GLOBE
+out vec2 v_pole;
+#endif
 
 void main() {
     float ele = get_elevation(a_pos3d.xy);
@@ -13,4 +16,7 @@ void main() {
     gl_Position = projectTileFor3D(a_pos3d.xy, ele - ele_delta);
     vec4 pos = u_fog_matrix * vec4(a_pos3d.xy, ele, 1.0);
     v_fog_depth = pos.z / pos.w * 0.5 + 0.5;
+#ifdef GLOBE
+    v_pole = poleCapPosition(a_pos3d.xy);
+#endif
 }
