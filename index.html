@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Set center point above ground: distant buildings</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="start">Example start position</option>
+        <option value="zoomedOut">Zoom 13.5</option>
+    </select>
+    <button id="reset">Reset both</button>
+    Left - The example today / Right - This PR
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.12.0/dist/maplibre-gl.mjs';
+
+    const scenarios = {
+        start: {center: [-74.01318, 40.713], zoom: 15.5, pitch: 85, bearing: -17.6},
+        zoomedOut: {center: [-74.01318, 40.713], zoom: 13.5, pitch: 85, bearing: -17.6}
+    };
+    const filters = {
+        before: ['!=', ['get', 'hide_3d'], true],
+        after: ['all', ['!=', ['get', 'hide_3d'], true], ['has', 'render_height']]
+    };
+
+    const select = document.getElementById('scenario');
+    let maps = [];
+
+    function load() {
+        for (const map of maps) map.remove();
+        maps = ['before', 'after'].map((container) => new maplibregl.Map({
+            container,
+            style: {
+                version: 8,
+                sources: {
+                    openfreemap: {url: 'https://tiles.openfreemap.org/planet', type: 'vector'}
+                },
+                layers: [{
+                    'id': '3d-buildings',
+                    'source': 'openfreemap',
+                    'source-layer': 'building',
+                    'type': 'fill-extrusion',
+                    'minzoom': 13,
+                    'filter': filters[container],
+                    'paint': {
+                        'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'render_height'], 0, 'lightgray', 200, 'royalblue', 400, 'lightblue'],
+                        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, ['get', 'render_height']],
+                        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, ['get', 'render_min_height']]
+                    }
+                }]
+            },
+            ...scenarios[select.value],
+            minZoom: 13,
+            canvasContextAttributes: {antialias: true},
+            centerClampedToGround: false,
+            elevation: 541,
+            maxPitch: 105
+        }));
+        let syncing = false;
+        for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
+            from.on('move', () => {
+                if (syncing) return;
+                syncing = true;
+                to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
+                syncing = false;
+            });
+        }
+        window.maps = maps;
+    }
+
+    select.addEventListener('change', load);
+    document.getElementById('reset').addEventListener('click', () => {
+        for (const map of maps) map.jumpTo(scenarios[select.value]);
+    });
+    load();
+</script>
+</body>
+</html>
