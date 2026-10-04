@@ -32,9 +32,9 @@
         start: {center: [-74.01318, 40.713], zoom: 15.5, pitch: 85, bearing: -17.6},
         zoomedOut: {center: [-74.01318, 40.713], zoom: 13.5, pitch: 85, bearing: -17.6}
     };
-    const filters = {
-        before: ['!=', ['get', 'hide_3d'], true],
-        after: ['all', ['!=', ['get', 'hide_3d'], true], ['has', 'render_height']]
+    const heights = {
+        before: {height: ['get', 'render_height'], base: ['get', 'render_min_height']},
+        after: {height: ['coalesce', ['get', 'render_height'], 0], base: ['coalesce', ['get', 'render_min_height'], 0]}
     };
 
     const select = document.getElementById('scenario');
@@ -55,11 +55,11 @@
                     'source-layer': 'building',
                     'type': 'fill-extrusion',
                     'minzoom': 13,
-                    'filter': filters[container],
+                    'filter': ['!=', ['get', 'hide_3d'], true],
                     'paint': {
-                        'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'render_height'], 0, 'lightgray', 200, 'royalblue', 400, 'lightblue'],
-                        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, ['get', 'render_height']],
-                        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, ['get', 'render_min_height']]
+                        'fill-extrusion-color': ['interpolate', ['linear'], heights[container].height, 0, 'lightgray', 200, 'royalblue', 400, 'lightblue'],
+                        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, heights[container].height],
+                        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 13, 0, 14, heights[container].base]
                     }
                 }]
             },
