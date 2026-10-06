@@ -476,7 +476,8 @@ type DelegatedListener = {
 type Delegate<E extends Event = Event> = (e: E) => void;
 
 type LostContextStyle = {
-    style: StyleSpecification | null;
+    style: StyleSpecification | string | null;
+    options?: StyleSwapOptions & StyleOptions;
     images: {[_: string]: StyleImage} | null;
 };
 
@@ -666,12 +667,9 @@ export class Map extends Evented<MapEventType> {
 
     /**
      * @internal
-     * Used to store the previous style and images when a context loss occurs, so they can be restored.
+     * The style and images to set when the WebGL context is restored, `null` while the map has its context.
      */
-    _lostContextStyle: LostContextStyle = {
-        style: null,
-        images: null
-    };
+    _lostContextStyle: LostContextStyle | null = null;
 
     /**
      * The map's {@link ScrollZoomHandler}, which implements zooming in and out with a scroll wheel or trackpad.
@@ -1595,8 +1593,7 @@ export class Map extends Evented<MapEventType> {
     resize(eventData?: any, constrainTransform = true): this {
         // Early out if the context is lost
         // causes a blank map otherwise
-        const isContextLost = this._lostContextStyle.style !== null;
-        if (isContextLost) return this;
+        if (this._lostContextStyle) return this;
         this._resizeInternal(constrainTransform);
 
         const fireMoving = !this._camera._moving;
@@ -2723,6 +2720,10 @@ export class Map extends Evented<MapEventType> {
     _updateStyle(style: StyleSpecification | string | null, options?: StyleSwapOptions & StyleOptions): this {
         this._diffStyleRequest?.abort();
         this._diffStyleRequest = null;
+        if (this._lostContextStyle) {
+            this._lostContextStyle = {style, options, images: null};
+            return this;
+        }
         // transformStyle relies on having previous style serialized, if it is not loaded yet, delay _updateStyle until previous style is loaded
         if (options.transformStyle && this.style && !this.style._loaded) {
             this.style.once('style.load', () => this._updateStyle(style, options));
@@ -4271,20 +4272,20 @@ export class Map extends Evented<MapEventType> {
     };
 
     _contextRestored = (event: WebGLContextEvent): void => {
-        if (this._lostContextStyle.style) {
-            this.setStyle(this._lostContextStyle.style, {diff: false});
+        const {style, options, images} = this._lostContextStyle;
+        this._lostContextStyle = null;
+        if (style) {
+            this.setStyle(style, {...options, diff: false});
         }
 
-        if (this._lostContextStyle.images && this.style) {
-            this.style.imageManager.images = this._lostContextStyle.images;
+        if (images && this.style) {
+            this.style.imageManager.images = images;
             // The atlas textures died with the old context, so images that render themselves with WebGL owe every atlas a fresh render.
-            for (const id in this._lostContextStyle.images) {
-                const image = this._lostContextStyle.images[id];
+            for (const id in images) {
+                const image = images[id];
                 if (image.isWebGLImage) this.style.imageManager.updateImage(id, image, false);
             }
         }
-
-        this._lostContextStyle = {style: null, images: null};
 
         try {
             this._setupPainter();

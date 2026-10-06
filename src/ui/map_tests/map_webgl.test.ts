@@ -75,6 +75,34 @@ test('style methods do not throw after WebGL context loss', async () => {
     map.remove();
 });
 
+test('does not render a style set while the WebGL context is lost', async () => {
+    const map = createMap();
+    await map.once('load');
+    const canvas = map.getCanvas();
+    canvas.dispatchEvent(new window.Event('webglcontextlost'));
+    const renderSpy = vi.spyOn(map.painter, 'render');
+
+    map.setStyle({version: 8, sources: {}, layers: []});
+    map.redraw();
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    map.remove();
+});
+
+test('sets a style given while the WebGL context is lost when the context is restored', async () => {
+    const map = createMap();
+    await map.once('load');
+    const canvas = map.getCanvas();
+    canvas.dispatchEvent(new window.Event('webglcontextlost'));
+
+    map.setStyle({version: 8, sources: {}, layers: [{id: 'background', type: 'background'}]});
+    canvas.dispatchEvent(new window.Event('webglcontextrestored'));
+    await map.once('style.load');
+
+    expect(map.getLayersOrder()).toEqual(['background']);
+    map.remove();
+});
+
 test('does not fire "webglcontextrestored" after remove has been called', async () => {
     const map = createMap();
     const canvas = map.getCanvas();
