@@ -475,9 +475,12 @@ type DelegatedListener = {
 
 type Delegate<E extends Event = Event> = (e: E) => void;
 
-type LostContextStyle = {
+type StyleRequest = {
     style: StyleSpecification | string | null;
     options?: StyleSwapOptions & StyleOptions;
+};
+
+type LostContextStyle = StyleRequest & {
     images: {[_: string]: StyleImage} | null;
 };
 
@@ -635,7 +638,11 @@ export class Map extends Evented<MapEventType> {
     _mapId: number = uniqueId();
     _localIdeographFontFamily: string | false;
     _validateStyle: boolean;
-    _styleUrl: string | null = null;
+    /**
+     * @internal
+     * The style and options last given to {@link Map.setStyle} or the `style` map option.
+     */
+    _styleRequest: StyleRequest = {style: null};
     _requestManager: RequestManager;
     _locale: Record<string, string>;
     _removed: boolean;
@@ -2681,7 +2688,7 @@ export class Map extends Evented<MapEventType> {
                 localIdeographFontFamily: this._localIdeographFontFamily,
                 validate: this._validateStyle
             }, options);
-        this._styleUrl = typeof style === 'string' ? style : null;
+        this._styleRequest = {style, options};
 
         if ((options.diff !== false && options.localIdeographFontFamily === this._localIdeographFontFamily) && this.style && style) {
             this._diffStyle(style, options);
@@ -2838,7 +2845,8 @@ export class Map extends Evented<MapEventType> {
      * ```
      */
     getStyleUrl(): string | null {
-        return this._styleUrl;
+        const style = this._styleRequest.style;
+        return typeof style === 'string' ? style : null;
     }
 
     /**
@@ -2847,13 +2855,10 @@ export class Map extends Evented<MapEventType> {
      * @returns An object containing the style and images.
      */
     _getStyleAndImages(): LostContextStyle {
-        if (this.style) {
-            return {
-                style: this.style.serialize(),
-                images: this.style.imageManager.cloneImages()
-            };
-        }
-        return {style: null, images: {}};
+        if (!this.style) return {style: null, images: {}};
+        const images = this.style.imageManager.cloneImages();
+        if (!this.style._loaded) return {...this._styleRequest, images};
+        return {style: this.style.serialize(), images};
     }
 
     /**

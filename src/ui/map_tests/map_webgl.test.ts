@@ -103,6 +103,18 @@ test('sets a style given while the WebGL context is lost when the context is res
     map.remove();
 });
 
+test('sets a style that was still loading when the WebGL context was lost when the context is restored', async () => {
+    const map = createMap({style: {version: 8, sources: {}, layers: [{id: 'background', type: 'background'}]}});
+    const canvas = map.getCanvas();
+
+    canvas.dispatchEvent(new window.Event('webglcontextlost'));
+    canvas.dispatchEvent(new window.Event('webglcontextrestored'));
+    await map.once('style.load');
+
+    expect(map.getLayersOrder()).toEqual(['background']);
+    map.remove();
+});
+
 test('does not fire "webglcontextrestored" after remove has been called', async () => {
     const map = createMap();
     const canvas = map.getCanvas();
