@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Set a style while the WebGL context is lost</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; display: flex; flex-direction: column; }
+        #maps .map { flex: 1; }
+        #maps .errors { padding: 4px; font: 12px monospace; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="bright">Set OpenFreeMap Bright while the context is lost</option>
+        <option value="background">Set a plain background style while the context is lost</option>
+    </select>
+    <button id="run">Lose context, set style, restore</button>
+    <button id="reset">Reset both</button>
+    Left - 6.13.0 / Right - This PR
+</div>
+<div id="maps">
+    <div><div id="before" class="map"></div><div id="beforeErrors" class="errors"></div></div>
+    <div><div id="after" class="map"></div><div id="afterErrors" class="errors"></div></div>
+</div>
+<script type="module">
+    const builds = {
+        before: 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/dist/maplibre-gl.mjs',
+        after: 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@9a51b13baf38105f7e3fa045522dc3bde57fad16/maplibre-gl.mjs'
+    };
+    const styles = {
+        bright: 'https://tiles.openfreemap.org/styles/bright',
+        background: {version: 8, sources: {}, layers: [{id: 'background', type: 'background', paint: {'background-color': '#c00'}}]}
+    };
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const select = document.getElementById('scenario');
+    const errors = {before: [], after: []};
+    let maps = {};
+
+    function showErrors() {
+        for (const side of ['before', 'after']) {
+            const last = errors[side].at(-1);
+            document.getElementById(`${side}Errors`).textContent = `Uncaught errors: ${errors[side].length}${last ? ` (${last})` : ''}`;
+        }
+    }
+
+    window.addEventListener('error', (event) => {
+        errors[event.filename === builds.before ? 'before' : 'after'].push(event.message);
+        showErrors();
+    });
+
+    async function load() {
+        for (const map of Object.values(maps)) map.remove();
+        maps = {};
+        for (const side of ['before', 'after']) {
+            errors[side] = [];
+            const maplibregl = await import(builds[side]);
+            maps[side] = new maplibregl.Map({
+                container: side,
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: [12.5683, 55.6761],
+                zoom: 12
+            });
+        }
+        showErrors();
+    }
+
+    async function run() {
+        const extensions = Object.values(maps).map((map) => map.getCanvas().getContext('webgl2').getExtension('WEBGL_lose_context'));
+        for (const extension of extensions) extension.loseContext();
+        await sleep(200);
+        for (const map of Object.values(maps)) map.setStyle(styles[select.value]);
+        await sleep(2000);
+        for (const extension of extensions) extension.restoreContext();
+    }
+
+    document.getElementById('run').addEventListener('click', run);
+    document.getElementById('reset').addEventListener('click', load);
+    load();
+</script>
+</body>
+</html>
