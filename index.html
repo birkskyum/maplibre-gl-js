@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Vertical perspective: resize without constraining the camera</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; }
+        body { font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { display: flex; gap: 2px; }
+        #maps > div { flex: none; width: 500px; height: 500px; }
+        #maps.small > div { width: 250px; height: 250px; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="north">North pole</option>
+        <option value="south">South pole</option>
+    </select>
+    <button id="shrink">Shrink and map.resize(undefined, false)</button>
+    <button id="reset">Reset both</button>
+    Left - 6.13.0 / Right - This PR.
+    <span id="latitudes"></span>
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    const AFTER_BASE = 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@df3fddccdb7cfb55d425445addb6359e62d38d9c';
+    const [before, after] = await Promise.all([
+        import('https://cdn.jsdelivr.net/npm/maplibre-gl@6.13.0/dist/maplibre-gl.mjs'),
+        import(`${AFTER_BASE}/maplibre-gl.mjs`)
+    ]);
+
+    const scenarios = {
+        north: {center: [0, 89], zoom: 1.2},
+        south: {center: [0, -89], zoom: 1.2}
+    };
+    const select = document.getElementById('scenario');
+    const container = document.getElementById('maps');
+    let maps = [];
+
+    function showLatitudes() {
+        const latitudes = maps.map((map) => map.getCenter().lat.toFixed(2));
+        document.getElementById('latitudes').textContent = `Center latitude: ${latitudes.join(' / ')}`;
+    }
+
+    function setSmall(small) {
+        container.classList.toggle('small', small);
+        for (const map of maps) map.resize(undefined, false);
+        showLatitudes();
+    }
+
+    function load() {
+        for (const map of maps) map.remove();
+        container.classList.remove('small');
+        maps = [[before, 'before'], [after, 'after']].map(([maplibregl, id]) => {
+            const map = new maplibregl.Map({container: id, style: 'https://tiles.openfreemap.org/styles/liberty', trackResize: false, attributionControl: {compact: true}});
+            map.on('style.load', () => {
+                map.setProjection({type: 'vertical-perspective'});
+                map.jumpTo(scenarios[select.value]);
+            });
+            new maplibregl.Marker().setLngLat(scenarios[select.value].center).addTo(map);
+            map.on('move', showLatitudes);
+            return map;
+        });
+        window.maps = maps;
+    }
+
+    select.addEventListener('change', load);
+    document.getElementById('shrink').addEventListener('click', () => setSmall(true));
+    document.getElementById('reset').addEventListener('click', () => {
+        setSmall(false);
+        for (const map of maps) map.jumpTo(scenarios[select.value]);
+    });
+    load();
+</script>
+</body>
+</html>
