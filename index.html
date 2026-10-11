@@ -9,71 +9,54 @@
         body { display: flex; flex-direction: column; font: 13px sans-serif; }
         #bar { padding: 4px; }
         #maps { flex: 1; display: flex; gap: 2px; }
-        #maps > div { flex: 1; display: flex; flex-direction: column; }
-        .map { flex: 1; }
-        .status { padding: 4px; height: 1.2em; }
+        #maps > div { flex: 1; }
     </style>
 </head>
 <body>
 <div id="bar">
-    <button id="recreate">Remove both maps and create new ones</button>
+    <button id="recreate">Remove the map and create a new one</button>
     Left - 6.14.0 / Right - #8735
 </div>
 <div id="maps">
-    <div><div id="before" class="map"></div><div id="beforeStatus" class="status"></div></div>
-    <div><div id="after" class="map"></div><div id="afterStatus" class="status"></div></div>
+    <div id="before"></div>
+    <div id="after"></div>
 </div>
 <script type="module">
     import * as release from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs';
     import * as pr from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@127b423bbab0452acad6940acbd0719b63564a8d/maplibre-gl.mjs';
 
     const workerScript = `
-        self.addProtocol('demo', async (params, abortController) => {
-            const response = await fetch(params.url.replace('demo://', 'https://'), {signal: abortController.signal});
+        self.addProtocol('demo', async (params) => {
+            const response = await fetch(params.url.replace('demo://', 'https://'));
             return {data: await response.arrayBuffer()};
         });`;
-    const workerScriptUrl = URL.createObjectURL(new Blob([workerScript], {type: 'text/javascript'}));
+    const workerScriptUrl = URL.createObjectURL(new Blob([workerScript]));
 
-    const sides = [
-        {maplibregl: release, container: 'before', status: document.getElementById('beforeStatus')},
-        {maplibregl: pr, container: 'after', status: document.getElementById('afterStatus')}
-    ];
-    let created = 0;
-
-    async function createMap(side) {
-        side.status.textContent = `Map ${created}`;
-        const map = new side.maplibregl.Map({
-            container: side.container,
-            style: {
-                version: 8,
-                sources: {},
-                layers: [{id: 'background', type: 'background', paint: {'background-color': '#d8f2ff'}}]
-            },
-            center: [10, 50],
-            zoom: 2
-        });
-        side.map = map;
-        map.on('error', (e) => {
-            side.status.textContent = `Map ${created}, error: ${e.error.message}`;
-        });
-        await map.once('load');
-        await side.imported;
-        map.addSource('countries', {type: 'vector', tiles: ['demo://demotiles.maplibre.org/tiles/{z}/{x}/{y}.pbf'], maxzoom: 6});
-        map.addLayer({id: 'countries', type: 'fill', source: 'countries', 'source-layer': 'countries', paint: {'fill-color': '#9bd18b', 'fill-outline-color': '#555'}});
-    }
-
-    function createMaps() {
-        created++;
-        for (const side of sides) createMap(side);
-    }
-
-    createMaps();
-    for (const side of sides) side.imported = side.maplibregl.importScriptInWorkers(workerScriptUrl);
-
-    document.getElementById('recreate').onclick = () => {
-        for (const side of sides) side.map.remove();
-        createMaps();
+    const emptyStyle = {version: 8, sources: {}, layers: []};
+    const style = {
+        version: 8,
+        sources: {
+            countries: {type: 'vector', tiles: ['demo://demotiles.maplibre.org/tiles/{z}/{x}/{y}.pbf'], maxzoom: 6}
+        },
+        layers: [
+            {id: 'background', type: 'background', paint: {'background-color': '#d8f2ff'}},
+            {id: 'countries', type: 'fill', source: 'countries', 'source-layer': 'countries', paint: {'fill-color': '#9bd18b', 'fill-outline-color': '#555'}}
+        ]
     };
+
+    async function run(maplibregl, container) {
+        let map = new maplibregl.Map({container, style: emptyStyle});
+        await maplibregl.importScriptInWorkers(workerScriptUrl);
+        map.setStyle(style);
+
+        document.getElementById('recreate').addEventListener('click', () => {
+            map.remove();
+            map = new maplibregl.Map({container, style});
+        });
+    }
+
+    run(release, 'before');
+    run(pr, 'after');
 </script>
 </body>
 </html>
