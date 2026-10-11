@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>importScriptInWorkers after the last map is removed</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; display: flex; flex-direction: column; }
+        .map { flex: 1; }
+        .status { padding: 4px; height: 1.2em; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <button id="recreate">Remove both maps and create new ones</button>
+    Left - 6.14.0 / Right - #8735
+</div>
+<div id="maps">
+    <div><div id="before" class="map"></div><div id="beforeStatus" class="status"></div></div>
+    <div><div id="after" class="map"></div><div id="afterStatus" class="status"></div></div>
+</div>
+<script type="module">
+    import * as release from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs';
+    import * as pr from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@127b423bbab0452acad6940acbd0719b63564a8d/maplibre-gl.mjs';
+
+    const workerScript = `
+        self.addProtocol('demo', async (params, abortController) => {
+            const response = await fetch(params.url.replace('demo://', 'https://'), {signal: abortController.signal});
+            return {data: await response.arrayBuffer()};
+        });`;
+    const workerScriptUrl = URL.createObjectURL(new Blob([workerScript], {type: 'text/javascript'}));
+
+    const sides = [
+        {maplibregl: release, container: 'before', status: document.getElementById('beforeStatus')},
+        {maplibregl: pr, container: 'after', status: document.getElementById('afterStatus')}
+    ];
+    let created = 0;
+
+    async function createMap(side) {
+        side.status.textContent = `Map ${created}`;
+        const map = new side.maplibregl.Map({
+            container: side.container,
+            style: {
+                version: 8,
+                sources: {},
+                layers: [{id: 'background', type: 'background', paint: {'background-color': '#d8f2ff'}}]
+            },
+            center: [10, 50],
+            zoom: 2
+        });
+        side.map = map;
+        map.on('error', (e) => {
+            side.status.textContent = `Map ${created}, error: ${e.error.message}`;
+        });
+        await map.once('load');
+        await side.imported;
+        map.addSource('countries', {type: 'vector', tiles: ['demo://demotiles.maplibre.org/tiles/{z}/{x}/{y}.pbf'], maxzoom: 6});
+        map.addLayer({id: 'countries', type: 'fill', source: 'countries', 'source-layer': 'countries', paint: {'fill-color': '#9bd18b', 'fill-outline-color': '#555'}});
+    }
+
+    function createMaps() {
+        created++;
+        for (const side of sides) createMap(side);
+    }
+
+    createMaps();
+    for (const side of sides) side.imported = side.maplibregl.importScriptInWorkers(workerScriptUrl);
+
+    document.getElementById('recreate').onclick = () => {
+        for (const side of sides) side.map.remove();
+        createMaps();
+    };
+</script>
+</body>
+</html>
