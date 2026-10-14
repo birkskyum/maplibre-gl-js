@@ -317,6 +317,32 @@ describe('renderTerrainHeightMap', () => {
         expect(gl.viewport).toHaveBeenCalledWith(0, 0, 64, 32);
     });
 
+    test('draws the heights of the terrain tiles around the rendered ones', async () => {
+        await map.once('load');
+        map.addSource('dem', {type: 'raster-dem', tiles: ['http://example.com/{z}/{x}/{y}.png'], tileSize: 256});
+        const source = map.getSource<RasterDEMTileSource>('dem');
+        await waitForMetadataEvent(source);
+        vi.spyOn(source, 'loadTile').mockImplementation(async (tile: Tile) => {
+            tile.dem = createDEM(() => 100);
+            tile.state = 'loaded';
+        });
+        map.setZoom(14);
+        map.setTerrain({source: 'dem'});
+        const gl = map.painter.context.gl;
+        const texture = gl.createTexture();
+
+        map.addLayer({
+            id: 'custom',
+            type: 'custom',
+            render: () => {},
+            prerender: (_gl, options) => options.renderTerrainHeightMap({texture, width: 64, height: 64, bounds: [0.4998779296875, 0.4998779296875, 0.5001220703125, 0.5001220703125]})
+        });
+        await map.once('idle');
+
+        expect(map.terrain.tileManager.getRenderableTiles().map(tile => tile.tileID.toString())).toEqual(['14/8192/8192', '14/8191/8192', '14/8192/8191', '14/8191/8191']);
+        expect(gl.uniform4f).toHaveBeenCalledWith(undefined, 0, 0.25, 0.25, 0.25);
+    });
+
     test('is not given to custom layers in render', async () => {
         vi.spyOn(ImageRequest, 'getImage').mockResolvedValue({data: null});
         map = createMap({zoom: 14, style: {
