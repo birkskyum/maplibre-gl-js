@@ -4,11 +4,16 @@ import {terrainUniformValues, terrainDepthUniformValues, terrainHeightUniformVal
 import {CullFaceMode} from '../cull_face_mode.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {ColorMode} from '../color_mode.ts';
+import {EXTENT} from '../../data/extent.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {Terrain, TerrainHeightMapTarget} from '../../render/terrain.ts';
 import type {Tile} from '../../tile/tile.ts';
+import type {OverscaledTileID} from '../../tile/tile_id.ts';
 import type {Painter} from '../../render/painter.ts';
+
+/** The offsets, in tiles, of the eight tiles around a tile. */
+const NEIGHBOR_OFFSETS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
 /**
  * Redraw the Depth Framebuffer
@@ -65,7 +70,8 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRen
 }
 
 /**
- * Draws the elevation of the loaded renderable terrain tiles into a texture, see {@link CustomRenderMethodInput.renderTerrainHeightMap}.
+ * Draws the elevation of the loaded renderable terrain tiles into a texture, see {@link CustomRenderMethodInput.renderTerrainHeightMap},
+ * over that of the tiles around them, so that objects whose anchor lies just outside the rendered tiles still stand on the ground.
  */
 function drawTerrainHeightMap(frameRenderContext: FrameRenderContext, terrain: Terrain, target: TerrainHeightMapTarget): void {
     const context = frameRenderContext.context;
@@ -77,10 +83,12 @@ function drawTerrainHeightMap(frameRenderContext: FrameRenderContext, terrain: T
     context.clear({color: Color.transparent});
 
     const program = frameRenderContext.useProgram('terrainHeight', null, true);
-    for (const tile of terrain.tileManager.getRenderableTiles()) {
-        const terrainData = terrain.getTerrainData(tile.tileID);
+    const renderableTiles = terrain.tileManager.getRenderableTiles();
+    const tileIDs = [...getTileIDsAround(renderableTiles), ...renderableTiles.map(tile => tile.tileID)];
+    for (const tileID of tileIDs) {
+        const terrainData = terrain.getTerrainData(tileID);
         if (!terrainData.tile?.dem) continue;
-        const {canonical, wrap} = tile.tileID;
+        const {canonical, wrap} = tileID;
         const tileSize = 1 / (1 << canonical.z);
         const uniformValues = terrainHeightUniformValues([
             (canonical.x * tileSize + wrap - minX) / (maxX - minX),
@@ -88,10 +96,25 @@ function drawTerrainHeightMap(frameRenderContext: FrameRenderContext, terrain: T
             tileSize / (maxX - minX),
             tileSize / (maxY - minY)
         ]);
-        const mesh = terrain.getTerrainMesh(tile.tileID, frameRenderContext.data.isRenderingGlobe);
+        const mesh = terrain.getTerrainMesh(tileID, frameRenderContext.data.isRenderingGlobe);
         program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled, uniformValues, terrainData, null, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }
     framebuffer.colorAttachment.set(null);
+}
+
+/**
+ * Returns the ids of the tiles next to the given tiles, at the same zoom, that are not among them.
+ */
+function getTileIDsAround(tiles: Tile[]): OverscaledTileID[] {
+    const keys = new Set(tiles.map(tile => tile.tileID.key));
+    const tileIDsAround = new Map<string, OverscaledTileID>();
+    for (const {tileID} of tiles) {
+        for (const [dx, dy] of NEIGHBOR_OFFSETS) {
+            const neighbor = tileID.normalizeCoordinates(dx * EXTENT, dy * EXTENT)?.tileID;
+            if (neighbor && !keys.has(neighbor.key)) tileIDsAround.set(neighbor.key, neighbor);
+        }
+    }
+    return [...tileIDsAround.values()];
 }
 
 export {
