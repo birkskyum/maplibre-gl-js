@@ -265,12 +265,12 @@ export class GeoJSONWorkerSource implements WorkerSource {
         if (params.data) {
             params.data = this._filterGeoJSON(params.data, params.filter, params.source);
             const indexData = this._crsHelper ? reprojectGeoJSONToWorld(params.data, this._crsHelper) : params.data;
-            this._geoJSONIndex = this._createGeoJSONIndex(indexData, params, this._crsHelper !== undefined);
+            this._geoJSONIndex = this._createGeoJSONIndex(indexData, params, this._crsHelper);
             return;
         }
 
         if (params.dataDiff) {
-            this._geoJSONIndex ??= this._createGeoJSONIndex({type: 'FeatureCollection', features: []}, params, this._crsHelper !== undefined);
+            this._geoJSONIndex ??= this._createGeoJSONIndex({type: 'FeatureCollection', features: []}, params, this._crsHelper);
             const indexDiff = this._crsHelper ? reprojectGeoJSONSourceDiffToWorld(params.dataDiff, this._crsHelper) : params.dataDiff;
             this._geoJSONIndex.updateData(indexDiff, this._getFilterPredicate(params.filter, params.source));
         }
@@ -340,14 +340,14 @@ export class GeoJSONWorkerSource implements WorkerSource {
 
 /**
  * Builds the geojson-vt index of a GeoJSON source's data.
- * @param worldCoordinates - whether the data is in the registered projection's world coordinates instead of lng/lat
+ * @param crsHelper - the registered projection whose world coordinates the data is in, or `undefined` for lng/lat
  */
-export function createGeoJSONIndex(data: GeoJSON.GeoJSON, params: LoadGeoJSONParameters, worldCoordinates: boolean): GeoJSONVT {
+export function createGeoJSONIndex(data: GeoJSON.GeoJSON, params: LoadGeoJSONParameters, crsHelper: CRSWorldCoordinateHelper | undefined): GeoJSONVT {
     const options = extend(params.geojsonVtOptions || {}, {
         updateable: true,
         clusterOptions: getSuperclusterOptions(params),
-        coordinates: worldCoordinates ? 'unitSquare' as const : 'lngLat' as const,
-        wrap: !worldCoordinates,
+        coordinates: crsHelper ? 'unitSquare' as const : 'lngLat' as const,
+        wrap: crsHelper?.wraps ?? true,
     });
 
     return new GeoJSONVT(data, options);
