@@ -1,0 +1,15 @@
+# A preview of livebranch's pictures, for pull requests inside this fork. A repository that takes
+# pull requests from other forks needs the two workflows in the livebranch README instead.
+name: livebranch pictures
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+permissions:
+  pull-requests: write
+  id-token: write
+jobs:
+  pictures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: birkskyum/livebranch/actions/shots@main
+      - uses: birkskyum/livebranch/actions/comment@main
