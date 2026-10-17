@@ -1,0 +1,16 @@
+# A test of the livebranch pictures, on a pull request between two branches of this fork. The
+# other workflows are removed on this branch, so that only this one runs.
+name: livebranch pictures
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+jobs:
+  pictures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: birkskyum/livebranch/actions/shots@main
+      - uses: birkskyum/livebranch/actions/comment@main
