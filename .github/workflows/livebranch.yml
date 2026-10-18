@@ -6,6 +6,7 @@ on:
     types: [opened, synchronize, reopened, edited]
 permissions:
   pull-requests: write
+  deployments: write
   id-token: write
 jobs:
   pictures:
