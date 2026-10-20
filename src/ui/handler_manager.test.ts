@@ -580,5 +580,32 @@ describe('dragRotate around the camera', () => {
         expect(fixedLngLat(map._camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
         expect(map._camera.transform.getCameraAltitude()).toBeCloseTo(cameraAltitude, 2);
     });
+
+    test('a scroll zoom on the ground after looking above the horizon moves the camera toward that ground', async () => {
+        map = createMap({interactive: true, dragRotate: {around: 'camera'}, centerClampedToGround: false, maxPitch: 180, zoom: 14, pitch: 60});
+        await map.once('load');
+        let time = 0;
+        vi.spyOn(timeControl, 'now').mockImplementation(() => time);
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 100, clientY: 150});
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 100, clientY: 70});
+        map.redraw();
+        simulate.mouseup(map.getCanvas(), {buttons: 0, button: 2, clientX: 100, clientY: 70});
+        map.redraw();
+        const tr = map._camera.transform;
+        const point = new Point(100, 190);
+        const ground = tr.screenPointToLocationAtElevation(point, 0);
+        const altitudeBefore = tr.getCameraAltitude();
+
+        simulate.wheel(map.getCanvas(), {deltaY: -simulate.magicWheelZoomDelta, clientX: point.x, clientY: point.y});
+        for (let i = 0; i < 40; i++) {
+            time += 16;
+            map._renderTaskQueue.run();
+            map.redraw();
+        }
+
+        expect(map.getPitch()).toBeCloseTo(100);
+        expect(map._camera.transform.getCameraAltitude()).toBeLessThan(altitudeBefore);
+        expect(fixedLngLat(map._camera.transform.screenPointToLocationAtElevation(point, 0), 7)).toEqual(fixedLngLat(ground, 7));
+    });
 });
 

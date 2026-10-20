@@ -594,6 +594,10 @@ export class HandlerManager {
         }
 
         const {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta} = combinedResult;
+        if (this._zoomsTowardGround(tr, combinedResult, terrain)) {
+            this._commitFrame(tr, combinedResult, combinedEventsInProgress, deactivatedHandlers);
+            return;
+        }
         if (zoomDelta > 0 && this._terrainGesture.inFlight) {
             this._camera.moveCenterOntoTerrain(tr, zoomDelta);
         }
@@ -645,6 +649,20 @@ export class HandlerManager {
     _turnsAroundPivot(combinedResult: HandlerResult, combinedEventsInProgress: EventsInProgress): boolean {
         if (!combinedResult.around) return false;
         return !combinedEventsInProgress.drag && !combinedEventsInProgress.zoom;
+    }
+
+    /**
+     * Moves the camera toward the ground under the pointer for a frame that only zooms with the camera below the center's
+     * elevation, as when it looks above the horizon, see {@link Camera.zoomTowardGround}.
+     */
+    _zoomsTowardGround(tr: ITransform, combinedResult: HandlerResult, terrain: Terrain | null): boolean {
+        const {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta, around} = combinedResult;
+        if (!zoomDelta || panDelta || bearingDelta || pitchDelta || rollDelta || tr.getCameraAltitude() >= tr.elevation) return false;
+        if (terrain && !this._terrainGesture.inFlight) {
+            this._terrainGesture.inFlight = true;
+            this._camera.holdElevation(tr, 'gesture');
+        }
+        return this._camera.zoomTowardGround(tr, around ?? tr.centerPoint, zoomDelta);
     }
 
     /**

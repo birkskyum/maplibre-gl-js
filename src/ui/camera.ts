@@ -6,10 +6,12 @@ import {browser} from '../util/browser.ts';
 import {now} from '../util/time_control.ts';
 import {LngLat, earthRadius} from '../geo/lng_lat.ts';
 import {LngLatBounds} from '../geo/lng_lat_bounds.ts';
+import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
 import {Evented} from '../util/evented.ts';
 import {MapMovementEvent} from './events.ts';
 import {createMercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {MercatorCameraHelper} from '../geo/projection/mercator_camera_helper.ts';
+import {cameraDirectionFromPitchBearing} from '../geo/projection/mercator_utils.ts';
 import {angularCoordinatesToSurfaceVector} from '../geo/projection/globe_utils.ts';
 import {sampleAt} from '../render/terrain_coverage.ts';
 import {ElevationHold} from './elevation_hold.ts';
@@ -1304,6 +1306,42 @@ export class Camera extends Evented<MapEventType> {
         const cameraLngLat = tr.getCameraLngLat();
         const cameraAltitude = tr.getCameraAltitude();
         this.cameraHelper.handleMapControlsRollPitchBearingZoom(deltas, tr);
+        this._placeCamera(tr, cameraLngLat, cameraAltitude);
+    }
+
+    /**
+     * @internal
+     * Moves the camera toward the ground under a point by a zoom, looking the same way, so that ground stays under the
+     * point. A zoom otherwise holds the location under the point at the center's elevation, which for a camera below
+     * the center, as one that looks above the horizon, lies behind the camera.
+     * @param tr - the requested camera state
+     * @param point - the screen point the zoom is around
+     * @param zoomDelta - how far the frame zooms in
+     * @returns false where the point shows no ground in front of the camera
+     */
+    zoomTowardGround(tr: ITransform, point: Point, zoomDelta: number): boolean {
+        const hit = this.terrain ? tr.screenTerrainPointToMercatorCoordinate(point, this.terrain) : null;
+        if (this.terrain && !hit) return false;
+        const ground = hit ?? MercatorCoordinate.fromLngLat(tr.screenPointToLocationAtElevation(point, 0));
+        const groundElevation = hit?.z ?? 0;
+        const metersToUnits = ground.meterInMercatorCoordinateUnits();
+        const camera = MercatorCoordinate.fromLngLat(tr.getCameraLngLat());
+        const height = tr.getCameraAltitude() - groundElevation;
+        const view = cameraDirectionFromPitchBearing(tr.pitch, tr.bearing);
+        const ahead = (ground.x - camera.x) * view.x + (ground.y - camera.y) * view.y + height * metersToUnits * view.z;
+        if (!(ahead > 0)) return false;
+        const scale = zoomScale(-zoomDelta);
+        const moved = new MercatorCoordinate(ground.x + (camera.x - ground.x) * scale, ground.y + (camera.y - ground.y) * scale);
+        this._placeCamera(tr, moved.toLngLat(), groundElevation + height * scale);
+        return true;
+    }
+
+    /**
+     * @internal
+     * Puts the camera at a location and altitude looking the way it does, with the center along the view on the ground
+     * under the camera, or in the sky where the view does not reach the ground.
+     */
+    _placeCamera(tr: ITransform, cameraLngLat: LngLat, cameraAltitude: number): void {
         tr.setElevation(this.terrain ? this.terrain.getElevationForLngLat(cameraLngLat, tr) : 0);
         const {center, elevation, zoom} = tr.calculateCenterFromCameraLngLatAlt(cameraLngLat, cameraAltitude, tr.bearing, tr.pitch);
         tr.setElevation(elevation);

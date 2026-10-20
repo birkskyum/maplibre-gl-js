@@ -4252,6 +4252,36 @@ describe('turnAroundCamera', () => {
     });
 });
 
+describe('zoomTowardGround', () => {
+    test('moves a camera that looks above the horizon toward the ground under the point by the zoom, which keeps that ground under the point', () => {
+        const camera = createPivotCamera();
+        camera.transform.setMaxPitch(180);
+        camera.turnAroundCamera(camera.transform, turnBy({pitchDelta: 40}));
+        const point = new Point(400, 590);
+        const ground = camera.transform.screenPointToLocationAtElevation(point, 0);
+        const distanceBefore = Math.hypot(camera.transform.getCameraLngLat().distanceTo(ground), camera.transform.getCameraAltitude());
+
+        const moved = camera.zoomTowardGround(camera.transform, point, 1);
+
+        expect(moved).toBe(true);
+        expect(camera.transform.pitch).toBeCloseTo(100);
+        expect(Math.hypot(camera.transform.getCameraLngLat().distanceTo(ground), camera.transform.getCameraAltitude()) / distanceBefore).toBeCloseTo(0.5, 5);
+        expect(camera.transform.screenPointToLocationAtElevation(point, 0).distanceTo(ground)).toBeLessThan(1);
+    });
+
+    test('leaves the camera where it is for a point in the sky', () => {
+        const camera = createPivotCamera();
+        camera.transform.setMaxPitch(180);
+        camera.turnAroundCamera(camera.transform, turnBy({pitchDelta: 40}));
+        const cameraLngLat = camera.transform.getCameraLngLat();
+
+        const moved = camera.zoomTowardGround(camera.transform, new Point(400, 10), 1);
+
+        expect(moved).toBe(false);
+        expect(fixedLngLat(camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
+    });
+});
+
 function createPivotCamera(terrain: Terrain = null): Camera {
     const {camera} = createCamera({maxZoom: 22, maxPitch: 85, renderWorldCopies: true, terrain});
     camera.transform.resize(800, 600, true);
