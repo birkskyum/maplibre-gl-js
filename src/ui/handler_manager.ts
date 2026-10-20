@@ -197,6 +197,8 @@ export class HandlerManager {
     _terrainGesture: TerrainGesture = {inFlight: false, anchorElevation: null, anchorCenterElevation: null};
     /** The point a drag turns the camera around, picked on its first frame and kept until it ends or cannot be held. */
     _rotationPivot: RotationPivot | null = null;
+    /** Whether the drag in progress turns the view where the camera stands, which skips the snap to north at its end. */
+    _turnsAroundCamera: boolean = false;
     _zoom: {handlerName: string};
     _previousActiveHandlers: {[x: string]: Handler};
     _listeners: Array<[Window | Document | HTMLElement, string, {
@@ -645,15 +647,24 @@ export class HandlerManager {
         return !combinedEventsInProgress.drag && !combinedEventsInProgress.zoom;
     }
 
-    /** Turns the camera around the drag's pivot, holding the center elevation over terrain until the drag ends like every gesture. */
+    /**
+     * Turns the camera around the drag's pivot, or the view where the camera stands with drag to rotate around the camera,
+     * holding the center elevation over terrain until the drag ends like every gesture.
+     */
     _orbitRotationPivot(tr: ITransform, combinedResult: HandlerResult, terrain: Terrain | null): void {
         if (terrain && !this._terrainGesture.inFlight) {
             this._terrainGesture.inFlight = true;
             this._camera.holdElevation(tr, 'gesture');
         }
         const {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta, around} = combinedResult;
+        const deltas = {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta, around};
+        if (this._map.dragRotate.around === 'camera') {
+            this._turnsAroundCamera = true;
+            this._camera.turnAroundCamera(tr, deltas);
+            return;
+        }
         this._rotationPivot ??= this._camera.captureRotationPivot(tr, around);
-        const held = this._camera.orbitRotationPivot(tr, this._rotationPivot, {panDelta, zoomDelta, bearingDelta, pitchDelta, rollDelta, around});
+        const held = this._camera.orbitRotationPivot(tr, this._rotationPivot, deltas);
         if (!held) this._rotationPivot = null;
     }
 
@@ -833,13 +844,16 @@ export class HandlerManager {
                 this._map.easeTo(inertialEase, {originalEvent: originalEndEvent});
             } else {
                 this._fireEvent('moveend', originalEndEvent);
-                if (shouldSnapToNorth(this._map.getBearing())) {
+                if (shouldSnapToNorth(this._map.getBearing()) && !this._turnsAroundCamera) {
                     this._map.resetNorth();
                 }
             }
             this._updatingCamera = false;
         }
-        if (finishedMoving) this._rotationPivot = null;
+        if (finishedMoving) {
+            this._rotationPivot = null;
+            this._turnsAroundCamera = false;
+        }
 
     }
 

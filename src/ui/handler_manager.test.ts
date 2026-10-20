@@ -5,6 +5,7 @@ import {Event as MapEvent} from '../util/evented.ts';
 import {MercatorCoordinate} from '../geo/mercator_coordinate.ts';
 import {beforeMapTest, createMap, createTerrain} from '../util/test/util.ts';
 import simulate from '../../test/unit/lib/simulate_interaction.ts';
+import {fixedLngLat} from '../../test/unit/lib/fixed.ts';
 import * as timeControl from '../util/time_control.ts';
 
 import type {HandlerManager, MapControlsScenarioOptions, EventInProgress, EventsInProgress} from './handler_manager.ts';
@@ -558,3 +559,26 @@ describe('dragRotate around the pointer', () => {
         expect(map.project(secondPivot).dist(new Point(140, 120))).toBeLessThan(0.1);
     });
 });
+
+describe('dragRotate around the camera', () => {
+    test('a right-button drag turns the view where the camera stands, and its end leaves the bearing near north as it is', async () => {
+        map = createMap({interactive: true, dragRotate: {around: 'camera'}, zoom: 12, pitch: 45});
+        await map.once('load');
+        vi.spyOn(timeControl, 'now').mockReturnValue(0);
+        const cameraLngLat = map._camera.transform.getCameraLngLat();
+        const cameraAltitude = map._camera.transform.getCameraAltitude();
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 60, clientY: 150});
+        simulate.mousemove(window.document.body, {buttons: 2, clientX: 66, clientY: 140});
+        map.redraw();
+        simulate.mouseup(map.getCanvas(), {buttons: 0, button: 2, clientX: 66, clientY: 140});
+        map.redraw();
+
+        expect(map.getBearing()).toBeCloseTo(4.8);
+        expect(map.getPitch()).toBeCloseTo(50);
+        expect(map.isRotating()).toBe(false);
+        expect(fixedLngLat(map._camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
+        expect(map._camera.transform.getCameraAltitude()).toBeCloseTo(cameraAltitude, 2);
+    });
+});
+

@@ -60,6 +60,16 @@ describe('mouse handler tests', () => {
         expect(mouseRotate.dragMove(new MouseEvent('mousemove', {buttons: 2}), new Point(220, 500))).toEqual({bearingDelta: 8, around: new Point(200, 100)});
     });
 
+    test('MouseRotateHandler around the camera turns by rotateSpeed on both sides of the center and records no inertia', () => {
+        const mouseRotate = generateMouseRotationHandler({clickTolerance: 2}, () => new Point(400, 300), () => 'camera');
+
+        mouseRotate.enable();
+        mouseRotate.dragStart(new MouseEvent('mousedown', {buttons: 2, button: 2}), new Point(200, 100));
+
+        expect(mouseRotate.dragMove(new MouseEvent('mousemove', {buttons: 2}), new Point(210, 100))).toEqual({bearingDelta: 8, around: new Point(200, 100), noInertia: true});
+        expect(mouseRotate.dragMove(new MouseEvent('mousemove', {buttons: 2}), new Point(220, 500))).toEqual({bearingDelta: 8, around: new Point(200, 100), noInertia: true});
+    });
+
     test('MousePitchHandler around the pointer tilts around the point the drag started at, and only on moves that tilt', () => {
         const mousePitch = generateMousePitchHandler({clickTolerance: 2}, () => 'pointer');
 

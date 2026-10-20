@@ -1295,6 +1295,24 @@ export class Camera extends Evented<MapEventType> {
 
     /**
      * @internal
+     * Turns the view where the camera stands, moving the center along the new view onto the ground under the camera, or
+     * into the sky where the view does not reach the ground.
+     * @param tr - the requested camera state
+     * @param deltas - the frame's change of bearing, pitch and roll
+     */
+    turnAroundCamera(tr: ITransform, deltas: MapControlsDeltas): void {
+        const cameraLngLat = tr.getCameraLngLat();
+        const cameraAltitude = tr.getCameraAltitude();
+        this.cameraHelper.handleMapControlsRollPitchBearingZoom(deltas, tr);
+        tr.setElevation(this.terrain ? this.terrain.getElevationForLngLat(cameraLngLat, tr) : 0);
+        const {center, elevation, zoom} = tr.calculateCenterFromCameraLngLatAlt(cameraLngLat, cameraAltitude, tr.bearing, tr.pitch);
+        tr.setElevation(elevation);
+        tr.setCenter(center);
+        tr.setZoom(zoom);
+    }
+
+    /**
+     * @internal
      * Returns the camera turned around the pivot, or null where that would make it look up, bring the pivot close to the
      * horizon or lose it.
      */

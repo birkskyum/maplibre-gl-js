@@ -23,9 +23,13 @@ export interface MouseRollHandler extends DragMoveHandler<DragRollResult, MouseE
 const LEFT_BUTTON = 0;
 const RIGHT_BUTTON = 2;
 
-/** Gives a move around the pointer the drag's start point as its `around`, but not a move without a change, which would make the handler active. */
-function aroundDragStart<T extends DragRotateResult | DragPitchResult | DragRollResult>(result: T, around: 'center' | 'pointer', startPoint: Point): T {
+/**
+ * Gives a move around the pointer or the camera the drag's start point as its `around`, but not a move without a change,
+ * which would make the handler active. A move around the camera records no inertia, which would move the camera.
+ */
+function aroundDragStart<T extends DragRotateResult | DragPitchResult | DragRollResult>(result: T, around: 'center' | 'pointer' | 'camera', startPoint: Point): T {
     if (around === 'center' || !(result.bearingDelta || result.pitchDelta || result.rollDelta)) return result;
+    if (around === 'camera') return {...result, around: startPoint, noInertia: true};
     return {...result, around: startPoint};
 }
 
@@ -65,7 +69,7 @@ export function generateMouseRotationHandler({enable, clickTolerance, minPixelCe
      * @defaultValue 0.8
      */
     rotateSpeed?: number;
-}, getCenter: () => Point, getAround?: () => 'center' | 'pointer', getMovement?: () => 'circular' | 'linear'): MouseRotateHandler {
+}, getCenter: () => Point, getAround?: () => 'center' | 'pointer' | 'camera', getMovement?: () => 'circular' | 'linear'): MouseRotateHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === LEFT_BUTTON && e.ctrlKey) ||
@@ -74,8 +78,9 @@ export function generateMouseRotationHandler({enable, clickTolerance, minPixelCe
     return new DragHandler<DragRotateResult, MouseEvent>({
         clickTolerance,
         move: (lastPoint: Point, currentPoint: Point, startPoint: Point) => {
-            if (getAround?.() === 'pointer') {
-                return aroundDragStart({bearingDelta: (currentPoint.x - lastPoint.x) * rotateSpeed}, 'pointer', startPoint);
+            const around = getAround?.() ?? 'center';
+            if (around !== 'center') {
+                return aroundDragStart({bearingDelta: (currentPoint.x - lastPoint.x) * rotateSpeed}, around, startPoint);
             }
             const center = getCenter();
             const isCircular = (getMovement?.() ?? 'circular') === 'circular';
@@ -105,7 +110,7 @@ export function generateMousePitchHandler({enable, clickTolerance, pitchSpeed = 
      */
     pitchSpeed?: number;
     enable?: boolean;
-}, getAround?: () => 'center' | 'pointer'): MousePitchHandler {
+}, getAround?: () => 'center' | 'pointer' | 'camera'): MousePitchHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === LEFT_BUTTON && e.ctrlKey) ||
@@ -127,7 +132,7 @@ export function generateMouseRollHandler({enable, clickTolerance, rollDegreesPer
     clickTolerance: number;
     rollDegreesPerPixelMoved?: number;
     enable?: boolean;
-}, getCenter: () => Point, getAround?: () => 'center' | 'pointer'): MouseRollHandler {
+}, getCenter: () => Point, getAround?: () => 'center' | 'pointer' | 'camera'): MouseRollHandler {
     const mouseMoveStateManager = new MouseMoveStateManager({
         checkCorrectEvent: (e: MouseEvent): boolean =>
             (e.button === RIGHT_BUTTON && e.ctrlKey),

@@ -4202,17 +4202,66 @@ describe('orbitRotationPivot', () => {
         expect(camera.transform.center).toEqual(new LngLat(0, 0));
     });
 
-    function createPivotCamera(terrain: Terrain = null): Camera {
-        const {camera} = createCamera({maxZoom: 22, maxPitch: 85, renderWorldCopies: true, terrain});
-        camera.transform.resize(800, 600, true);
-        camera.transform.setCenter(new LngLat(0, 0));
-        camera.transform.setZoom(12);
-        camera.transform.setElevation(500);
-        camera.transform.setPitch(60);
-        return camera;
-    }
-
-    function turnBy(deltas: Partial<MapControlsDeltas>): MapControlsDeltas {
-        return {panDelta: new Point(0, 0), zoomDelta: 0, bearingDelta: 0, pitchDelta: 0, rollDelta: 0, around: new Point(0, 0), ...deltas};
-    }
 });
+
+describe('turnAroundCamera', () => {
+    test('keeps the camera where it stands and puts the center on the ground along the new view', () => {
+        const camera = createPivotCamera();
+        const cameraLngLat = camera.transform.getCameraLngLat();
+        const cameraAltitude = camera.transform.getCameraAltitude();
+
+        camera.turnAroundCamera(camera.transform, turnBy({bearingDelta: 30, pitchDelta: -20}));
+
+        expect(camera.transform.bearing).toBeCloseTo(30);
+        expect(camera.transform.pitch).toBeCloseTo(40);
+        expect(camera.transform.elevation).toBe(0);
+        expect(fixedLngLat(camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
+        expect(camera.transform.getCameraAltitude()).toBeCloseTo(cameraAltitude, 2);
+    });
+
+    test('puts the center at the elevation of the terrain under the camera', () => {
+        const terrain = createDEMTerrain([new OverscaledTileID(0, 0, 0, 0, 0)], createDEM(() => 300));
+        const camera = createPivotCamera(terrain);
+        const cameraLngLat = camera.transform.getCameraLngLat();
+        const cameraAltitude = camera.transform.getCameraAltitude();
+
+        camera.turnAroundCamera(camera.transform, turnBy({bearingDelta: 30}));
+
+        expect(camera.transform.elevation).toBeCloseTo(300, 5);
+        expect(fixedLngLat(camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
+        expect(camera.transform.getCameraAltitude()).toBeCloseTo(cameraAltitude, 2);
+    });
+
+    test('looks above the horizon with the center in the sky, and back down with the center on the ground', () => {
+        const camera = createPivotCamera();
+        camera.transform.setMaxPitch(180);
+        const cameraLngLat = camera.transform.getCameraLngLat();
+        const cameraAltitude = camera.transform.getCameraAltitude();
+
+        camera.turnAroundCamera(camera.transform, turnBy({pitchDelta: 60}));
+        const pitchLookingUp = camera.transform.pitch;
+        const elevationLookingUp = camera.transform.elevation;
+        camera.turnAroundCamera(camera.transform, turnBy({pitchDelta: -60}));
+
+        expect(pitchLookingUp).toBeCloseTo(120);
+        expect(elevationLookingUp).toBeGreaterThan(cameraAltitude);
+        expect(camera.transform.pitch).toBeCloseTo(60);
+        expect(camera.transform.elevation).toBe(0);
+        expect(fixedLngLat(camera.transform.getCameraLngLat())).toEqual(fixedLngLat(cameraLngLat));
+        expect(camera.transform.getCameraAltitude()).toBeCloseTo(cameraAltitude, 2);
+    });
+});
+
+function createPivotCamera(terrain: Terrain = null): Camera {
+    const {camera} = createCamera({maxZoom: 22, maxPitch: 85, renderWorldCopies: true, terrain});
+    camera.transform.resize(800, 600, true);
+    camera.transform.setCenter(new LngLat(0, 0));
+    camera.transform.setZoom(12);
+    camera.transform.setElevation(500);
+    camera.transform.setPitch(60);
+    return camera;
+}
+
+function turnBy(deltas: Partial<MapControlsDeltas>): MapControlsDeltas {
+    return {panDelta: new Point(0, 0), zoomDelta: 0, bearingDelta: 0, pitchDelta: 0, rollDelta: 0, around: new Point(0, 0), ...deltas};
+}

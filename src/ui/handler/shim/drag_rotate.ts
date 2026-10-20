@@ -22,7 +22,7 @@ export type DragRotateHandlerOptions = {
 };
 
 /**
- * Options object for {@link DragRotateHandler.enable}. A drag around the pointer always turns the map linearly,
+ * Options object for {@link DragRotateHandler.enable}. A drag around the pointer or the camera always turns the map linearly,
  * so `movement` is only set with `around: 'center'`.
  */
 export type DragRotateOptions = {
@@ -45,6 +45,13 @@ export type DragRotateOptions = {
      * horizontal movement of the pointer. A drag that starts in the sky turns around the center.
      */
     around: 'pointer';
+} | {
+    /**
+     * The camera stays where it is and the drag turns the view, like looking around from there. The bearing follows the
+     * horizontal movement of the pointer and the pitch the vertical movement. Looking above the horizon needs a `maxPitch`
+     * above 90 and `centerClampedToGround: false`. The drag has no inertia and no snap to north, which would move the camera.
+     */
+    around: 'camera';
 };
 
 /**
@@ -62,7 +69,7 @@ export class DragRotateHandler {
     _rollEnabled: boolean;
     _defaultMovement: 'circular' | 'linear';
     /** @internal */
-    around: 'center' | 'pointer';
+    around: 'center' | 'pointer' | 'camera';
     /** @internal */
     movement: 'circular' | 'linear';
 
@@ -87,13 +94,14 @@ export class DragRotateHandler {
      * ```ts
      * map.dragRotate.enable();
      * map.dragRotate.enable({around: 'pointer'});
+     * map.dragRotate.enable({around: 'camera'});
      * map.dragRotate.enable({around: 'center', movement: 'linear'});
      * ```
      */
     enable(options?: DragRotateOptions | boolean): void {
         const enableOptions: DragRotateOptions = typeof options === 'object' ? options : {};
         this.around = enableOptions.around ?? 'center';
-        this.movement = enableOptions.around === 'pointer' ? 'linear' : enableOptions.movement ?? this._defaultMovement;
+        this.movement = enableOptions.around === 'pointer' || enableOptions.around === 'camera' ? 'linear' : enableOptions.movement ?? this._defaultMovement;
         this._mouseRotate.enable();
         if (this._pitchWithRotate) this._mousePitch.enable();
         if (this._rollEnabled) this._mouseRoll.enable();
