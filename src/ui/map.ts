@@ -110,11 +110,11 @@ export type MapOptions = {
      */
     bearingSnap?: number;
     /**
-     * How panning the globe treats the bearing. If `'fixed'` is passed, the bearing stays as it is and the center
-     * stops at a pole. If `'free'` is passed, the globe turns with the pointer like a ball, so the bearing changes on
-     * any drag and the globe rolls over a pole, also while it glides on after a flick. The map keeps the bearing a free
-     * drag leaves, without `bearingSnap`, so after a pole crossing it stays upside down until it is turned back, for
-     * example with the compass. Has no effect in mercator.
+     * Whether panning the globe keeps the current bearing (`'fixed'`) or turns the globe like a ball, changing the
+     * bearing and crossing the poles (`'free'`). With `'fixed'` the center stops at a pole. With `'free'` a drag keeps
+     * the grabbed point under the pointer and changes the bearing anywhere on the globe, and a flick glides on the same
+     * way. After a pole crossing the map stays upside down until it is turned back, for example with the compass,
+     * since `bearingSnap` doesn't apply after a free pan. Has no effect in mercator or on rotate gestures.
      * @defaultValue 'fixed'
      */
     panBearing?: 'fixed' | 'free';
@@ -2063,7 +2063,7 @@ export class Map extends Evented<MapEventType> {
     }
 
     /**
-     * Returns how panning the globe treats the bearing, see {@link MapOptions.panBearing}.
+     * Returns whether panning the globe keeps the bearing or turns the globe like a ball, see {@link MapOptions.panBearing}.
      * @example
      * ```ts
      * const panBearing = map.getPanBearing();
@@ -2072,7 +2072,7 @@ export class Map extends Evented<MapEventType> {
     getPanBearing(): 'fixed' | 'free' { return this._panBearing; }
 
     /**
-     * Sets how panning the globe treats the bearing, see {@link MapOptions.panBearing}.
+     * Sets whether panning the globe keeps the bearing or turns the globe like a ball, see {@link MapOptions.panBearing}.
      * @param panBearing - `'fixed'` keeps the bearing and stops the center at a pole, `'free'` turns the globe like a ball.
      * @example
      * ```ts
