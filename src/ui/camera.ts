@@ -936,6 +936,35 @@ export class Camera extends Evented<MapEventType> {
     }
 
     /**
+     * @internal
+     * Keeps a drag with a free bearing going after it ends, moving the map on by `pan` in steps through the camera
+     * helper's pan, so a globe glides over a pole. Holds the center elevation over terrain like other inertia.
+     */
+    glidePan(pan: Point, options: AnimationOptions, eventData?: Record<string, unknown>): void {
+        this._stop(false);
+        const tr = this.getTransformForUpdate();
+        const startBearing = tr.bearing;
+        this._prepareEase(eventData, true, {}, {tr, center: tr.center, freeze: true});
+
+        let panned = 0;
+        this._ease((k) => {
+            const panDelta = pan.mult(k - panned);
+            panned = k;
+            const around = tr.centerPoint;
+            const deltas: MapControlsDeltas = {panDelta, zoomDelta: 0, bearingDelta: 0, pitchDelta: 0, rollDelta: 0, around, bearing: 'free'};
+            this.cameraHelper.handleMapControlsPan(deltas, tr, tr.screenPointToLocation(around.sub(panDelta)));
+            if (!this._rotating && tr.bearing !== startBearing) {
+                this._rotating = true;
+                this.fire(new MapMovementEvent('rotatestart', eventData));
+            }
+            this.applyUpdatedTransform(tr);
+            this._fireMoveEvents(eventData);
+        }, (interruptingEaseId?: string) => {
+            this._afterEase(eventData, interruptingEaseId, true);
+        }, options);
+    }
+
+    /**
      * @param elevation - over terrain, the transform the animation edits, the map center it ends on, and whether
      * it holds the center elevation (`freezeElevation`) instead of easing it
      */

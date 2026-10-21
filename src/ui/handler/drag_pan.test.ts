@@ -1,7 +1,8 @@
-import {describe, beforeEach, test, expect, vi} from 'vitest';
+import {describe, beforeEach, afterEach, test, expect, vi} from 'vitest';
 import {DOM} from '../../util/dom.ts';
 import simulate from '../../../test/unit/lib/simulate_interaction.ts';
-import {beforeMapTest} from '../../util/test/util.ts';
+import {beforeMapTest, createMap as globalCreateMap} from '../../util/test/util.ts';
+import {restoreNow, setNow} from '../../util/time_control.ts';
 import {Map} from '../map.ts';
 
 import type {MapGeoJSONFeature} from '../../util/vectortile_to_geojson.ts';
@@ -16,6 +17,10 @@ function createMap(clickTolerance?, dragPan?) {
 
 beforeEach(() => {
     beforeMapTest();
+});
+
+afterEach(() => {
+    restoreNow();
 });
 
 // MouseEvent.buttons = 1 // left button
@@ -500,6 +505,85 @@ describe('drag_pan', () => {
 
         expect(map.getCenter().lng).toBeCloseTo(-14.0625, 10);
         expect(map.getCenter().lat).toBeCloseTo(0, 10);
+
+        map.remove();
+    });
+
+    test('DragPanHandler glides the globe on over the pole after a flick with a free bearing', async () => {
+        const map = globalCreateMap({interactive: true, style: {version: 8, sources: {}, layers: [], projection: {type: 'globe'}}, center: [0, 70], panBearing: 'free'});
+        await map.once('load');
+
+        let now = 1000;
+        setNow(now);
+        simulate.dragInMoves(map.getCanvas(), [100, 80], [100, 140], 3, () => {
+            setNow(now += 16);
+            map.redraw();
+        });
+        simulate.mouseup(map.getCanvas(), {clientX: 100, clientY: 140});
+        map.redraw();
+
+        expect(map.getCenter().lat).toBeLessThan(88);
+        expect(map.getCenter().lng).toBeCloseTo(0, 6);
+
+        setNow(now + 5000);
+        map.redraw();
+
+        expect(map.getCenter().lat).toBeLessThan(88);
+        expect(Math.abs(map.getCenter().lng)).toBeCloseTo(180, 6);
+        expect(Math.abs(map.getBearing())).toBeCloseTo(180, 6);
+
+        map.remove();
+    });
+
+    test('DragPanHandler keeps the zoom inertia of a pinch that pans the globe with a free bearing', async () => {
+        const map = globalCreateMap({interactive: true, style: {version: 8, sources: {}, layers: [], projection: {type: 'globe'}}, center: [0, 30], zoom: 3});
+        await map.once('load');
+        map.setPanBearing('free');
+        const target = map.getCanvas();
+
+        setNow(1000);
+        simulate.touchstart(target, {touches: [{target, identifier: 1, clientX: 70, clientY: 100}, {target, identifier: 2, clientX: 130, clientY: 100}]});
+        map.redraw();
+        setNow(1016);
+        simulate.touchmove(target, {touches: [{target, identifier: 1, clientX: 65, clientY: 105}, {target, identifier: 2, clientX: 145, clientY: 105}]});
+        map.redraw();
+        setNow(1032);
+        simulate.touchmove(target, {touches: [{target, identifier: 1, clientX: 60, clientY: 110}, {target, identifier: 2, clientX: 160, clientY: 110}]});
+        map.redraw();
+        setNow(1048);
+        simulate.touchmove(target, {touches: [{target, identifier: 1, clientX: 55, clientY: 115}, {target, identifier: 2, clientX: 175, clientY: 115}]});
+        map.redraw();
+        simulate.touchend(target, {touches: []});
+        map.redraw();
+
+        expect(map.getZoom()).toBeCloseTo(4, 1);
+
+        setNow(6048);
+        map.redraw();
+
+        expect(map.getZoom()).toBeCloseTo(6.5, 1);
+
+        map.remove();
+    });
+
+    test('DragPanHandler keeps the bearing a slow drag with a free bearing leaves near north', async () => {
+        const map = globalCreateMap({interactive: true, style: {version: 8, sources: {}, layers: [], projection: {type: 'globe'}}, center: [0, 40], zoom: 0, panBearing: 'free'});
+        await map.once('load');
+
+        let now = 1000;
+        setNow(now);
+        simulate.dragInMoves(map.getCanvas(), [100, 100], [110, 125], 3, () => {
+            setNow(now += 16);
+            map.redraw();
+        });
+        setNow(now + 500);
+        map.redraw();
+        simulate.mouseup(map.getCanvas(), {clientX: 110, clientY: 125});
+        map.redraw();
+        setNow(now + 5500);
+        map.redraw();
+
+        expect(map.getBearing()).toBeCloseTo(-6.75, 2);
 
         map.remove();
     });

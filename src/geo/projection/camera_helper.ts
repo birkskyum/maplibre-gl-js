@@ -11,6 +11,8 @@ import type {PaddingOptions} from '../edge_insets.ts';
 import type {LngLatBounds} from '../lng_lat_bounds.ts';
 
 export type MapControlsDeltas = {
+    /** Whether a pan on the globe keeps the bearing (`'fixed'`, the default) or turns it with the rotation (`'free'`). */
+    bearing?: 'fixed' | 'free';
     panDelta: Point;
     zoomDelta: number;
     bearingDelta: number;
@@ -117,6 +119,11 @@ export function cameraBoundsWarning(): void {
  */
 export interface ICameraHelper {
     get useGlobeControls(): boolean;
+
+    /**
+     * Returns whether a pan turns the bearing, which a drag with a free bearing does where the pan rotates a globe.
+     */
+    panTurnsBearing(bearing: 'fixed' | 'free'): boolean;
 
     handlePanInertia(pan: Point, transform: IReadonlyTransform): {
         easingCenter: LngLat;

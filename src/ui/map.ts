@@ -110,6 +110,15 @@ export type MapOptions = {
      */
     bearingSnap?: number;
     /**
+     * How panning the globe treats the bearing. If `'fixed'` is passed, the bearing stays as it is and the center
+     * stops at a pole. If `'free'` is passed, the globe turns with the pointer like a ball, so the bearing changes on
+     * any drag and the globe rolls over a pole, also while it glides on after a flick. The map keeps the bearing a free
+     * drag leaves, without `bearingSnap`, so after a pole crossing it stays upside down until it is turned back, for
+     * example with the compass. Has no effect in mercator.
+     * @defaultValue 'fixed'
+     */
+    panBearing?: 'fixed' | 'free';
+    /**
      * The step increment the zoom level will snap to.
      * For example, if `zoomSnap` is 1, the map will snap to whole integers during discrete zoom operations.
      * If set to 0, zooming is continuous.
@@ -507,6 +516,7 @@ const defaultOptions: Readonly<Partial<MapOptions>> = {
     hash: false,
     interactive: true,
     bearingSnap: 7,
+    panBearing: 'fixed',
     zoomSnap: 0,
     attributionControl: defaultAttributionControlOptions,
     maplibreLogo: false,
@@ -609,6 +619,7 @@ export class Map extends Evented<MapEventType> {
     painter: Painter;
     _camera: Camera;
     _handlers: HandlerManager;
+    _panBearing: 'fixed' | 'free';
     _container: HTMLElement;
     _canvasContainer: HTMLElement;
     _controlContainer: HTMLElement;
@@ -841,6 +852,7 @@ export class Map extends Evented<MapEventType> {
         });
         this.once('idle', () => this._idleTriggered = true);
 
+        this._panBearing = resolvedOptions.panBearing;
         this._handlers = new HandlerManager(this, this._camera, resolvedOptions);
 
         if (typeof window !== 'undefined') {
@@ -2048,6 +2060,27 @@ export class Map extends Evented<MapEventType> {
     setRenderWorldCopies(renderWorldCopies?: boolean | null): this {
         this._camera.applyTransformChange(tr => tr.setRenderWorldCopies(renderWorldCopies));
         return this._update();
+    }
+
+    /**
+     * Returns how panning the globe treats the bearing, see {@link MapOptions.panBearing}.
+     * @example
+     * ```ts
+     * const panBearing = map.getPanBearing();
+     * ```
+     */
+    getPanBearing(): 'fixed' | 'free' { return this._panBearing; }
+
+    /**
+     * Sets how panning the globe treats the bearing, see {@link MapOptions.panBearing}.
+     * @param panBearing - `'fixed'` keeps the bearing and stops the center at a pole, `'free'` turns the globe like a ball.
+     * @example
+     * ```ts
+     * map.setPanBearing('free');
+     * ```
+     */
+    setPanBearing(panBearing: 'fixed' | 'free'): void {
+        this._panBearing = panBearing;
     }
 
     /** Sets or clears the callback overriding how the map constrains the viewport's lnglat and zoom to respect the longitude and latitude bounds.
