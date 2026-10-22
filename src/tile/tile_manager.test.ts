@@ -819,6 +819,30 @@ describe('TileManager.update', () => {
         expect(tileManager.getRenderableIds()).toEqual([new OverscaledTileID(0, -1, 0, 0, 0).key]);
     });
 
+    test('cross-fades a globe raster tile with its loaded parent in another world copy', async () => {
+        const transform = createGlobeTransform();
+        transform.resize(512, 512);
+        transform.setZoom(0.2);
+        transform.setCenter(new LngLat(-103, 52));
+        const tileManager = createTileManager({
+            raster: true,
+            loadTile: async (tile: Tile) => { tile.state = 'loaded'; }
+        });
+        tileManager.setRasterFadeDuration(300);
+        const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
+        tileManager.onAdd(undefined);
+        await dataPromise;
+        tileManager.update(transform);
+        await sleep(0);
+        transform.setZoom(1.05);
+        tileManager.update(transform);
+        await sleep(0);
+
+        tileManager.update(transform);
+
+        expect(tileManager.getTile(new OverscaledTileID(1, -1, 1, 1, 0)).fadingParentID).toEqual(new OverscaledTileID(0, 0, 0, 0, 0));
+    });
+
     test('adds ideal (covering) tiles only once for zoom level on raster maps', async () => {
         const transform = createMercatorTransform();
         transform.resize(512, 512);

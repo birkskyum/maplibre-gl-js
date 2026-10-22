@@ -601,7 +601,7 @@ export class TileManager extends Evented<SourceEventType> {
         // enable fading for raster source except when using terrain which doesn't currently support fading
         const isRaster = isRasterType(this._source.type);
         if (isRaster && this._rasterFadeDuration > 0 && !terrain) {
-            updateFadingTiles(this._inViewTiles, idealTileIDs, retain, this._maxFadingAncestorLevels, this._source.minzoom, this._source.maxzoom, this._rasterFadeDuration);
+            updateFadingTiles(this._inViewTiles, tileID => this._getLoadedStandInTile(tileID), idealTileIDs, retain, this._maxFadingAncestorLevels, this._source.minzoom, this._source.maxzoom, this._rasterFadeDuration);
         }
 
         // clean up non-retained tiles that are no longer needed
@@ -637,6 +637,14 @@ export class TileManager extends Evented<SourceEventType> {
     _getStandInTile(tileID: OverscaledTileID): Tile | undefined {
         if (this._worldCopiesAreOnePlace()) return this._inViewTiles.getTileInAnyWorldCopy(tileID);
         return this.getTile(tileID);
+    }
+
+    /**
+     * Returns the loaded tile with this ID, or the same loaded tile in another world copy where every copy is the same place.
+     */
+    _getLoadedStandInTile(tileID: OverscaledTileID): Tile | null {
+        const tile = this._getStandInTile(tileID);
+        return tile?.hasData() ? tile : null;
     }
 
     /**

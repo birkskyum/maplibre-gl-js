@@ -23,6 +23,7 @@ export function isRasterType(type: string): boolean {
  */
 export function updateFadingTiles(
     inViewTiles: InViewTiles,
+    getLoadedTile: (tileID: OverscaledTileID) => Tile | null,
     idealTileIDs: OverscaledTileID[], 
     retain: Record<string, OverscaledTileID>,
     maxFadingAncestorLevels: number,
@@ -40,10 +41,10 @@ export function updateFadingTiles(
             idealTile.resetFadeLogic();
         }
 
-        const parentIsFader = updateFadingAncestor(inViewTiles, idealTile, retain, currentTime, maxFadingAncestorLevels, sourceMinZoom, rasterFadeDuration);
+        const parentIsFader = updateFadingAncestor(getLoadedTile, idealTile, retain, currentTime, maxFadingAncestorLevels, sourceMinZoom, rasterFadeDuration);
         if (parentIsFader) continue;
 
-        const childIsFader = updateFadingDescendents(inViewTiles, idealTile, retain, currentTime, sourceMaxZoom, rasterFadeDuration);
+        const childIsFader = updateFadingDescendents(getLoadedTile, idealTile, retain, currentTime, sourceMaxZoom, rasterFadeDuration);
         if (childIsFader) continue;
 
         const edgeIsFader = updateFadingEdge(idealTile, edgeTileIDs, currentTime, rasterFadeDuration);
@@ -65,7 +66,7 @@ export function updateFadingTiles(
  *                             ■   ■   ■   ■  ■   ■   ■   ■  ■   ■   ■   ■  ■   ■   ■   ■
  */
 function updateFadingAncestor(
-    inViewTiles: InViewTiles,
+    getLoadedTile: (tileID: OverscaledTileID) => Tile | null,
     idealTile: Tile, 
     retain: Record<string, OverscaledTileID>, 
     now: number,
@@ -84,8 +85,7 @@ function updateFadingAncestor(
     // find a loaded parent tile to fade with the ideal tile
     const minAncestorZ = Math.max(idealID.overscaledZ - maxFadingAncestorLevels, sourceMinZoom);
     for (let ancestorZ = idealID.overscaledZ - 1; ancestorZ >= minAncestorZ; ancestorZ--) {
-        const ancestorID = idealID.scaledTo(ancestorZ);
-        const ancestorTile = inViewTiles.getLoadedTile(ancestorID);
+        const ancestorTile = getLoadedTile(idealID.scaledTo(ancestorZ));
         if (!ancestorTile) continue;
 
         // ideal tile (base) is fading in
@@ -102,7 +102,7 @@ function updateFadingAncestor(
             fadeEndTime: now + rasterFadeDuration
         });
 
-        retain[ancestorID.key] = ancestorID;
+        retain[ancestorTile.tileID.key] = ancestorTile.tileID;
         return true;
     }
     return false;
@@ -120,18 +120,18 @@ function updateFadingAncestor(
  *
  * Try direct children first. If none found, try grandchildren. Stops at the first generation that provides a fader.
  */
-function updateFadingDescendents(inViewTiles: InViewTiles, idealTile: Tile, retain: Record<string, OverscaledTileID>, now: number, sourceMaxZoom: number, rasterFadeDuration: number): boolean {
+function updateFadingDescendents(getLoadedTile: (tileID: OverscaledTileID) => Tile | null, idealTile: Tile, retain: Record<string, OverscaledTileID>, now: number, sourceMaxZoom: number, rasterFadeDuration: number): boolean {
     if (!idealTile.hasData()) return false;
 
     // search first level of descendents (4 tiles)
     const idealChildren = idealTile.tileID.children(sourceMaxZoom);
-    let hasFader = updateFadingChildren(inViewTiles, idealTile, idealChildren, retain, now, sourceMaxZoom, rasterFadeDuration);
+    let hasFader = updateFadingChildren(getLoadedTile, idealTile, idealChildren, retain, now, sourceMaxZoom, rasterFadeDuration);
     if (hasFader) return true;
 
     // search second level of descendents (16 tiles)
     for (const childID of idealChildren) {
         const grandChildIDs = childID.children(sourceMaxZoom);
-        if (updateFadingChildren(inViewTiles, idealTile, grandChildIDs, retain, now, sourceMaxZoom, rasterFadeDuration)) {
+        if (updateFadingChildren(getLoadedTile, idealTile, grandChildIDs, retain, now, sourceMaxZoom, rasterFadeDuration)) {
             hasFader = true;
         }
     }
@@ -140,7 +140,7 @@ function updateFadingDescendents(inViewTiles: InViewTiles, idealTile: Tile, reta
 }
 
 function updateFadingChildren(
-    inViewTiles: InViewTiles,
+    getLoadedTile: (tileID: OverscaledTileID) => Tile | null,
     idealTile: Tile, 
     childIDs: OverscaledTileID[], 
     retain: Record<string, OverscaledTileID>, 
@@ -152,7 +152,7 @@ function updateFadingChildren(
 
     // find loaded child tiles to fade with the ideal tile
     for (const childID of childIDs) {
-        const childTile = inViewTiles.getLoadedTile(childID);
+        const childTile = getLoadedTile(childID);
         if (!childTile) continue;
 
         const {fadingRole, fadingDirection, fadingParentID} = childTile;
@@ -172,7 +172,7 @@ function updateFadingChildren(
             });
         }
 
-        retain[childID.key] = childID;
+        retain[childTile.tileID.key] = childTile.tileID;
         foundFader = true;
     }
 

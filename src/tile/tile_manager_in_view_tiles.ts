@@ -50,13 +50,14 @@ export class InViewTiles {
     }
 
     /**
-     * Returns the tile with this ID, or else the same tile in another world copy.
+     * Returns the tile with this ID, or else the same tile in another world copy, preferring a tile with data.
      */
     public getTileInAnyWorldCopy(tileID: OverscaledTileID): Tile | undefined {
         const tile = this._tiles[tileID.key];
-        if (tile) return tile;
+        if (tile?.hasData()) return tile;
         const wrappedKey = tileID.wrapped().key;
-        return Object.values(this._tiles).find(other => other.tileID.wrapped().key === wrappedKey);
+        const copies = Object.values(this._tiles).filter(other => other.tileID.wrapped().key === wrappedKey);
+        return copies.find(copy => copy.hasData()) ?? tile ?? copies[0];
     }
 
     public setFeatureState(featuresChanged: LayerFeatureStates, style: Style, revision: number): void {
