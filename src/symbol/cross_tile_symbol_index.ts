@@ -254,6 +254,7 @@ class CrossTileSymbolLayerIndex {
      */
     handleTileWrapChange(tileID: OverscaledTileID, bucketInstanceId: number): boolean {
         const zoomIndexes = this.indexes[tileID.overscaledZ];
+        if (!zoomIndexes) return false;
         for (const key in zoomIndexes) {
             const index = zoomIndexes[key];
             if (index.bucketInstanceId !== bucketInstanceId) continue;
