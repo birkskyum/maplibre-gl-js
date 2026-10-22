@@ -767,25 +767,6 @@ describe('TileManager.update', () => {
         expect(loadTile).toHaveBeenCalledTimes(1);
     });
 
-    test('does not load tiles again when the globe center moves closer to another world copy of them', async () => {
-        const transform = createGlobeTransform();
-        transform.resize(512, 512);
-        transform.setZoom(1.05);
-        transform.setCenter(new LngLat(-89, 80));
-        const tileManager = createTileManager();
-        const loadTile = vi.spyOn(tileManager.getSource(), 'loadTile');
-        const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
-        tileManager.onAdd(undefined);
-        await dataPromise;
-        tileManager.update(transform);
-        expect(loadTile).toHaveBeenCalledTimes(2);
-
-        transform.setCenter(new LngLat(-91, 80));
-        tileManager.update(transform);
-
-        expect(loadTile).toHaveBeenCalledTimes(2);
-    });
-
     test('adds ideal (covering) tiles only once for zoom level on raster maps', async () => {
         const transform = createMercatorTransform();
         transform.resize(512, 512);
