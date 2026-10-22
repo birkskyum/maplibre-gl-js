@@ -588,9 +588,7 @@ export class TileManager extends Evented<SourceEventType> {
             this.fire(new MapSourceDataEvent('data', {sourceDataType: 'idle', sourceId: this.id}));
         }
 
-        if (this._inViewTiles.moveTilesToWorldCopies(idealTileIDs)) {
-            this._resetTileReloadTimers();
-        }
+        this._moveTilesToWorldCopies(idealTileIDs);
 
         // Retain is a list of tiles that we shouldn't delete, even if they are not
         // the most ideal tile for the current viewport. This may include tiles like
@@ -609,6 +607,18 @@ export class TileManager extends Evented<SourceEventType> {
             this._cleanUpRasterTiles(retain);
         } else {
             this._cleanUpVectorTiles(retain);
+        }
+    }
+
+    /**
+     * The globe gives each tile the world copy nearest the center, so a tile changes copy as the map moves.
+     * Every copy is the same place there, so a loaded tile moves to the copy the ideal tiles ask for instead of loading again.
+     */
+    _moveTilesToWorldCopies(idealTileIDs: OverscaledTileID[]): void {
+        if (this.transform.getCoveringTilesDetailsProvider().allowWorldCopies()) return;
+        const moved = this._inViewTiles.moveTilesToWorldCopies(idealTileIDs);
+        if (moved) {
+            this._resetTileReloadTimers();
         }
     }
 

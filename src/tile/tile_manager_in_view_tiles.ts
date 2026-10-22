@@ -19,8 +19,8 @@ export class InViewTiles {
     }
 
     /**
-     * Moves a tile whose world copy is not in `tileIDs` to a copy in `tileIDs` that has no tile yet.
-     * The globe gives each tile the copy nearest the center, so a tile changes copy as the map moves.
+     * Moves a loaded tile whose world copy is not in `tileIDs` to a copy in `tileIDs` that has no tile yet.
+     * Only for a projection where every world copy of a tile is the same place.
      * @returns whether a tile moved
      */
     public moveTilesToWorldCopies(tileIDs: OverscaledTileID[]): boolean {
@@ -30,7 +30,7 @@ export class InViewTiles {
         const wantedKeys = new Set(tileIDs.map(tileID => tileID.key));
         const spareTiles = new Map<string, Tile>();
         for (const tile of Object.values(this._tiles)) {
-            if (!wantedKeys.has(tile.tileID.key)) {
+            if (tile.state === 'loaded' && !wantedKeys.has(tile.tileID.key)) {
                 spareTiles.set(tile.tileID.wrapped().key, tile);
             }
         }

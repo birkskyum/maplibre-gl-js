@@ -753,12 +753,15 @@ describe('TileManager.update', () => {
         transform.resize(512, 512);
         transform.setZoom(0);
         transform.setCenter(new LngLat(179.9, 0));
-        const tileManager = createTileManager();
+        const tileManager = createTileManager({
+            loadTile: async (tile: Tile) => { tile.state = 'loaded'; }
+        });
         const loadTile = vi.spyOn(tileManager.getSource(), 'loadTile');
         const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
         tileManager.onAdd(undefined);
         await dataPromise;
         tileManager.update(transform);
+        await sleep(0);
         expect(loadTile).toHaveBeenCalledTimes(1);
 
         transform.setCenter(new LngLat(-179.9, 0));
