@@ -49,6 +49,16 @@ export class InViewTiles {
         return moved;
     }
 
+    /**
+     * Returns the tile with this ID, or else the same tile in another world copy.
+     */
+    public getTileInAnyWorldCopy(tileID: OverscaledTileID): Tile | undefined {
+        const tile = this._tiles[tileID.key];
+        if (tile) return tile;
+        const wrappedKey = tileID.wrapped().key;
+        return Object.values(this._tiles).find(other => other.tileID.wrapped().key === wrappedKey);
+    }
+
     public setFeatureState(featuresChanged: LayerFeatureStates, style: Style, revision: number): void {
         for (const id in this._tiles) {
             const tile = this._tiles[id];

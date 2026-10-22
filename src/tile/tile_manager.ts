@@ -412,12 +412,14 @@ export class TileManager extends Evented<SourceEventType> {
      */
     _getLoadedDescendents(targetTileIDs: Set<OverscaledTileID>): Record<string, Tile[]> {
         const loadedDescendents: Record<string, Tile[]> = {};
+        const anyWorldCopy = this._worldCopiesAreOnePlace();
 
         // enumerate current tiles and find the loaded descendents of each target tile
         for (const tile of this._inViewTiles.getAllTiles().filter(tile => tile.hasData())) {
+            const tileID = anyWorldCopy ? tile.tileID.wrapped() : tile.tileID;
             // determine if the loaded tile (hasData) is a qualified descendent of any target tile
             for (const targetID of targetTileIDs) {
-                if (tile.tileID.isChildOf(targetID)) {
+                if (tileID.isChildOf(anyWorldCopy ? targetID.wrapped() : targetID)) {
                     loadedDescendents[targetID.key] ||= [];
                     loadedDescendents[targetID.key].push(tile);
                 }
@@ -615,11 +617,26 @@ export class TileManager extends Evented<SourceEventType> {
      * Every copy is the same place there, so a loaded tile moves to the copy the ideal tiles ask for instead of loading again.
      */
     _moveTilesToWorldCopies(idealTileIDs: OverscaledTileID[]): void {
-        if (this.transform.getCoveringTilesDetailsProvider().allowWorldCopies()) return;
+        if (!this._worldCopiesAreOnePlace()) return;
         const moved = this._inViewTiles.moveTilesToWorldCopies(idealTileIDs);
         if (moved) {
             this._resetTileReloadTimers();
         }
+    }
+
+    /**
+     * Whether every world copy of a tile is the same place, as on the globe, where the copies are only bookkeeping.
+     */
+    _worldCopiesAreOnePlace(): boolean {
+        return this.transform?.getCoveringTilesDetailsProvider().allowWorldCopies() === false;
+    }
+
+    /**
+     * Returns the tile with this ID, or the same tile in another world copy where every copy is the same place.
+     */
+    _getStandInTile(tileID: OverscaledTileID): Tile | undefined {
+        if (this._worldCopiesAreOnePlace()) return this._inViewTiles.getTileInAnyWorldCopy(tileID);
+        return this.getTile(tileID);
     }
 
     /**
@@ -725,14 +742,14 @@ export class TileManager extends Evented<SourceEventType> {
                 if (checked[parentId.key]) break;
                 checked[parentId.key] = true;
 
-                tile = this.getTile(parentId);
+                tile = this._getStandInTile(parentId);
                 if (!tile && parentWasRequested) {
                     tile = this._addTile(parentId);
                 }
                 if (tile) {
                     const hasData = tile.hasData();
                     if (hasData || !this.map?.cancelPendingTileRequestsWhileZooming || parentWasRequested) {
-                        retainTileMap[parentId.key] = parentId;
+                        retainTileMap[tile.tileID.key] = tile.tileID;
                     }
                     // Save the current values, since they're the parent of the next iteration
                     // of the parent tile ascent loop.

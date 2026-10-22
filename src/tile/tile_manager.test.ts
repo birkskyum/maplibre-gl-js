@@ -770,6 +770,55 @@ describe('TileManager.update', () => {
         expect(loadTile).toHaveBeenCalledTimes(1);
     });
 
+    test('keeps loaded zoom 1 tiles from another world copy while the globe loads the zoom 0 tile', async () => {
+        const transform = createGlobeTransform();
+        transform.resize(512, 512);
+        transform.setZoom(1.05);
+        transform.setCenter(new LngLat(-103, 52));
+        const tileManager = createTileManager({
+            loadTile: async (tile: Tile) => { tile.state = 'loaded'; }
+        });
+        const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
+        tileManager.onAdd(undefined);
+        await dataPromise;
+        tileManager.update(transform);
+        await sleep(0);
+        vi.spyOn(tileManager.getSource(), 'loadTile').mockReturnValue(new Promise(() => {}));
+
+        transform.setZoom(0);
+        tileManager.update(transform);
+
+        expect(tileManager.getRenderableIds()).toEqual([
+            new OverscaledTileID(1, -1, 1, 1, 0).key,
+            new OverscaledTileID(1, 0, 1, 0, 1).key,
+            new OverscaledTileID(1, 0, 1, 0, 0).key,
+        ]);
+    });
+
+    test('keeps the loaded zoom 0 tile while globe tiles in another world copy load', async () => {
+        const transform = createGlobeTransform();
+        transform.resize(511, 511);
+        transform.setZoom(0);
+        transform.setCenter(new LngLat(179.9, 0));
+        const tileManager = createTileManager({
+            loadTile: async (tile: Tile) => { tile.state = tile.tileID.canonical.z === 0 ? 'loaded' : 'loading'; }
+        });
+        const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
+        tileManager.onAdd(undefined);
+        await dataPromise;
+        tileManager.update(transform);
+        await sleep(0);
+        transform.setZoom(1);
+        tileManager.update(transform);
+        transform.setCenter(new LngLat(-179.9, 0));
+        tileManager.update(transform);
+
+        transform.setCenter(new LngLat(-1, 0));
+        tileManager.update(transform);
+
+        expect(tileManager.getRenderableIds()).toEqual([new OverscaledTileID(0, -1, 0, 0, 0).key]);
+    });
+
     test('adds ideal (covering) tiles only once for zoom level on raster maps', async () => {
         const transform = createMercatorTransform();
         transform.resize(512, 512);
