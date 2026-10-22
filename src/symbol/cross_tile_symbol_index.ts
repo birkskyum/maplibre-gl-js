@@ -248,24 +248,24 @@ class CrossTileSymbolLayerIndex {
     }
 
     /**
-     * The tile manager can move a tile to another world copy without reloading it. Move the index of
+     * The tile manager can move a tile to another world copy without reloading it. Moves the index of
      * its bucket along, so that the symbols keep their cross-tile IDs.
+     * @returns whether the bucket had an index under another world copy
      */
-    handleTileWrapChange(tileID: OverscaledTileID, bucketInstanceId: number): void {
+    handleTileWrapChange(tileID: OverscaledTileID, bucketInstanceId: number): boolean {
         const zoomIndexes = this.indexes[tileID.overscaledZ];
-        if (!zoomIndexes || zoomIndexes[tileID.key]) return;
         for (const key in zoomIndexes) {
             const index = zoomIndexes[key];
             if (index.bucketInstanceId !== bucketInstanceId) continue;
             delete zoomIndexes[key];
             index.tileID = tileID;
             zoomIndexes[tileID.key] = index;
-            return;
+            return true;
         }
+        return false;
     }
 
     addBucket(tileID: OverscaledTileID, bucket: SymbolBucket, crossTileIDs: CrossTileIDs): boolean {
-        this.handleTileWrapChange(tileID, bucket.bucketInstanceId);
         if (this.indexes[tileID.overscaledZ]?.[tileID.key]) {
             if (this.indexes[tileID.overscaledZ][tileID.key].bucketInstanceId ===
                 bucket.bucketInstanceId) {
@@ -279,6 +279,8 @@ class CrossTileSymbolLayerIndex {
                 this.removeBucketCrossTileIDs(tileID.overscaledZ,
                     this.indexes[tileID.overscaledZ][tileID.key]);
             }
+        } else if (this.handleTileWrapChange(tileID, bucket.bucketInstanceId)) {
+            return false;
         }
 
         for (let i = 0; i < bucket.symbolInstances.length; i++) {
