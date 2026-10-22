@@ -361,6 +361,10 @@ export class GlobeTransform implements ITransform {
         return this.currentTransform.getCoveringTilesDetailsProvider();
     }
 
+    worldCopiesCoincide(): boolean {
+        return this._globeness === 1;
+    }
+
     recalculateZoomAndCenter(terrain?: Terrain): void {
         this.currentTransform.recalculateZoomAndCenter(terrain);
     }

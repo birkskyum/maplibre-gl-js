@@ -373,6 +373,10 @@ export class MercatorTransform implements ITransform {
         return this._coveringTilesDetailsProvider;
     }
 
+    worldCopiesCoincide(): boolean {
+        return false;
+    }
+
     recalculateZoomAndCenter(terrain?: Terrain): void {
         for (let pass = 0; pass < CENTER_ON_TERRAIN_PASSES; pass++) {
             // find position the camera is looking on

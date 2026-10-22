@@ -371,8 +371,8 @@ export class TileManager extends Evented<SourceEventType> {
      * @param idealTilesWithoutData - which of the ideal tiles currently does not have loaded data
      * @return a set of tiles that need to be loaded
      */
-    _retainLoadedChildren(retainTileMap: Record<string, OverscaledTileID>, idealTilesWithoutData: Set<OverscaledTileID>): Set<OverscaledTileID> {
-        const loadedDescendents: Record<string, Tile[]> = this._getLoadedDescendents(idealTilesWithoutData);
+    _retainLoadedChildren(retainTileMap: Record<string, OverscaledTileID>, idealTilesWithoutData: Set<OverscaledTileID>, standIns?: Record<string, Tile>): Set<OverscaledTileID> {
+        const loadedDescendents: Record<string, Tile[]> = this._getLoadedDescendents(idealTilesWithoutData, standIns);
         const incomplete = new Set<OverscaledTileID>();
 
         // retain the uppermost descendents of target tiles
@@ -408,20 +408,23 @@ export class TileManager extends Evented<SourceEventType> {
     }
 
     /**
-     * Return dictionary of qualified loaded descendents for each provided target tile id
+     * Return dictionary of qualified loaded descendents for each provided target tile id.
+     * With `standIns`, a descendent in any world copy qualifies, once.
      */
-    _getLoadedDescendents(targetTileIDs: Set<OverscaledTileID>): Record<string, Tile[]> {
+    _getLoadedDescendents(targetTileIDs: Set<OverscaledTileID>, standIns?: Record<string, Tile>): Record<string, Tile[]> {
         const loadedDescendents: Record<string, Tile[]> = {};
-        const anyWorldCopy = this._worldCopiesAreOnePlace();
+        const tiles = standIns ? Object.values(standIns) : this._inViewTiles.getAllTiles();
+        const targets = [...targetTileIDs];
+        const matchIDs = standIns ? targets.map(targetID => targetID.wrapped()) : targets;
 
         // enumerate current tiles and find the loaded descendents of each target tile
-        for (const tile of this._inViewTiles.getAllTiles().filter(tile => tile.hasData())) {
-            const tileID = anyWorldCopy ? tile.tileID.wrapped() : tile.tileID;
+        for (const tile of tiles.filter(tile => tile.hasData())) {
+            const tileID = standIns ? tile.tileID.wrapped() : tile.tileID;
             // determine if the loaded tile (hasData) is a qualified descendent of any target tile
-            for (const targetID of targetTileIDs) {
-                if (tileID.isChildOf(anyWorldCopy ? targetID.wrapped() : targetID)) {
-                    loadedDescendents[targetID.key] ||= [];
-                    loadedDescendents[targetID.key].push(tile);
+            for (let i = 0; i < targets.length; i++) {
+                if (tileID.isChildOf(matchIDs[i])) {
+                    loadedDescendents[targets[i].key] ||= [];
+                    loadedDescendents[targets[i].key].push(tile);
                 }
             }
         }
@@ -601,7 +604,17 @@ export class TileManager extends Evented<SourceEventType> {
         // enable fading for raster source except when using terrain which doesn't currently support fading
         const isRaster = isRasterType(this._source.type);
         if (isRaster && this._rasterFadeDuration > 0 && !terrain) {
-            updateFadingTiles(this._inViewTiles, tileID => this._getLoadedStandInTile(tileID), idealTileIDs, retain, this._maxFadingAncestorLevels, this._source.minzoom, this._source.maxzoom, this._rasterFadeDuration);
+            const standIns = this._getStandIns();
+            updateFadingTiles({
+                inViewTiles: this._inViewTiles,
+                getLoadedTile: tileID => this._getLoadedStandInTile(tileID, standIns),
+                idealTileIDs,
+                retain,
+                maxFadingAncestorLevels: this._maxFadingAncestorLevels,
+                sourceMinZoom: this._source.minzoom,
+                sourceMaxZoom: this._source.maxzoom,
+                rasterFadeDuration: this._rasterFadeDuration
+            });
         }
 
         // clean up non-retained tiles that are no longer needed
@@ -617,7 +630,7 @@ export class TileManager extends Evented<SourceEventType> {
      * Every copy is the same place there, so a loaded tile moves to the copy the ideal tiles ask for instead of loading again.
      */
     _moveTilesToWorldCopies(idealTileIDs: OverscaledTileID[]): void {
-        if (!this._worldCopiesAreOnePlace()) return;
+        if (this.transform.getCoveringTilesDetailsProvider().allowWorldCopies()) return;
         const movedTiles = this._inViewTiles.moveTilesToWorldCopies(idealTileIDs);
         for (const previousKey in movedTiles) {
             const tile = movedTiles[previousKey];
@@ -627,25 +640,29 @@ export class TileManager extends Evented<SourceEventType> {
     }
 
     /**
-     * Whether the projection allows no world copies, as on the globe, where every copy of a tile is the same place.
+     * Returns one tile for each tile ID without its world copy, so that a tile can stand in for another copy of itself,
+     * or `undefined` while the world copies of a tile are drawn at different places.
      */
-    _worldCopiesAreOnePlace(): boolean {
-        return this.transform?.getCoveringTilesDetailsProvider().allowWorldCopies() === false;
+    _getStandIns(): Record<string, Tile> | undefined {
+        if (!this.transform?.worldCopiesCoincide()) return undefined;
+        return this._inViewTiles.getTilesInAnyWorldCopy();
     }
 
     /**
-     * Returns the tile with this ID, or the same tile in another world copy where every copy is the same place.
+     * Returns the tile with this ID, or when it has no data, the same tile in another world copy from `standIns`.
      */
-    _getStandInTile(tileID: OverscaledTileID): Tile | undefined {
-        if (this._worldCopiesAreOnePlace()) return this._inViewTiles.getTileInAnyWorldCopy(tileID);
-        return this.getTile(tileID);
+    _getStandInTile(tileID: OverscaledTileID, standIns?: Record<string, Tile>): Tile | undefined {
+        const tile = this.getTile(tileID);
+        if (!standIns || tile?.hasData()) return tile;
+        const copy = standIns[tileID.wrapped().key];
+        return copy?.hasData() ? copy : tile ?? copy;
     }
 
     /**
-     * Returns the loaded tile with this ID, or the same loaded tile in another world copy where every copy is the same place.
+     * Returns the loaded tile with this ID, or the same loaded tile in another world copy from `standIns`.
      */
-    _getLoadedStandInTile(tileID: OverscaledTileID): Tile | null {
-        const tile = this._getStandInTile(tileID);
+    _getLoadedStandInTile(tileID: OverscaledTileID, standIns?: Record<string, Tile>): Tile | null {
+        const tile = this._getStandInTile(tileID, standIns);
         return tile?.hasData() ? tile : null;
     }
 
@@ -732,7 +749,8 @@ export class TileManager extends Evented<SourceEventType> {
 
         // retain the tile even if it's not loaded because it's an ideal tile.
         const retainTileMap: Record<string, OverscaledTileID> = idealTileIDs.reduce((acc, t) => { acc[t.key] = t; return acc;}, {});
-        const tileIdsWithoutData = this._retainLoadedChildren(retainTileMap, idealTilesWithoutData);
+        const standIns = this._getStandIns();
+        const tileIdsWithoutData = this._retainLoadedChildren(retainTileMap, idealTilesWithoutData, standIns);
 
         // for remaining missing tiles with incomplete child coverage, seek a loaded parent tile
         const checked: Record<string, boolean> = {};
@@ -752,7 +770,7 @@ export class TileManager extends Evented<SourceEventType> {
                 if (checked[parentId.key]) break;
                 checked[parentId.key] = true;
 
-                tile = this._getStandInTile(parentId);
+                tile = this._getStandInTile(parentId, standIns);
                 if (!tile && parentWasRequested) {
                     tile = this._addTile(parentId);
                 }

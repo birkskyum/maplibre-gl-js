@@ -5,6 +5,20 @@ import {FadingDirections, FadingRoles, type Tile} from './tile.ts';
 import type {OverscaledTileID} from './tile_id.ts';
 import type {InViewTiles} from './tile_manager_in_view_tiles.ts';
 
+/**
+ * What {@link updateFadingTiles} works with. `getLoadedTile` finds the parents and children a tile can fade with.
+ */
+type FadingTilesOptions = {
+    inViewTiles: InViewTiles;
+    getLoadedTile: (tileID: OverscaledTileID) => Tile | null;
+    idealTileIDs: OverscaledTileID[];
+    retain: Record<string, OverscaledTileID>;
+    maxFadingAncestorLevels: number;
+    sourceMinZoom: number;
+    sourceMaxZoom: number;
+    rasterFadeDuration: number;
+};
+
 export function isRasterType(type: string): boolean {
     return type === 'raster' || type === 'image' || type === 'video';
 }
@@ -21,15 +35,7 @@ export function isRasterType(type: string): boolean {
  * For a pitched map, the back of the map can have decreasing zooms while the front can have increasing zooms.
  * Fade logic must therefore adapt dynamically based on the previously rendered ideal tile set.
  */
-export function updateFadingTiles(
-    inViewTiles: InViewTiles,
-    getLoadedTile: (tileID: OverscaledTileID) => Tile | null,
-    idealTileIDs: OverscaledTileID[], 
-    retain: Record<string, OverscaledTileID>,
-    maxFadingAncestorLevels: number,
-    sourceMinZoom: number,
-    sourceMaxZoom: number,
-    rasterFadeDuration: number): void {
+export function updateFadingTiles({inViewTiles, getLoadedTile, idealTileIDs, retain, maxFadingAncestorLevels, sourceMinZoom, sourceMaxZoom, rasterFadeDuration}: FadingTilesOptions): void {
     const currentTime: number = now();
     const edgeTileIDs: Set<OverscaledTileID> = getEdgeTiles(idealTileIDs);
 
@@ -78,7 +84,11 @@ function updateFadingAncestor(
     const {tileID: idealID, fadingRole, fadingDirection, fadingParentID} = idealTile;
     // ideal tile already has fading parent - retain and return
     if (fadingRole === FadingRoles.Base && fadingDirection === FadingDirections.Incoming && fadingParentID) {
-        retain[fadingParentID.key] = fadingParentID;
+        const parentTile = getLoadedTile(fadingParentID);
+        if (parentTile) {
+            idealTile.fadingParentID = parentTile.tileID;
+        }
+        retain[idealTile.fadingParentID.key] = idealTile.fadingParentID;
         return true;
     }
 
@@ -170,6 +180,8 @@ function updateFadingChildren(
                 fadingDirection: FadingDirections.Incoming,
                 fadeEndTime: now + rasterFadeDuration
             });
+        } else {
+            childTile.fadingParentID = idealTile.tileID;
         }
 
         retain[childTile.tileID.key] = childTile.tileID;

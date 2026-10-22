@@ -576,6 +576,10 @@ export class VerticalPerspectiveTransform implements ITransform {
         return this._coveringTilesDetailsProvider;
     }
 
+    worldCopiesCoincide(): boolean {
+        return true;
+    }
+
     recalculateZoomAndCenter(terrain?: Terrain): void {
         if (terrain) {
             warnOnce('terrain is not fully supported on vertical perspective projection.');

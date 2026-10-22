@@ -411,6 +411,12 @@ export interface IReadonlyTransform extends ITransformGetters {
 
     /**
      * @internal
+     * Whether every world copy of a tile is drawn at the same place, as on the globe while it doesn't blend into mercator.
+     */
+    worldCopiesCoincide(): boolean;
+
+    /**
+     * @internal
      * Given a LngLat location, return the screen point that corresponds to it.
      * @param lnglat - location
      * @param terrain - optional terrain
