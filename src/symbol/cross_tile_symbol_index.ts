@@ -247,7 +247,25 @@ class CrossTileSymbolLayerIndex {
         this.lng = lng;
     }
 
+    /**
+     * The tile manager can move a tile to another world copy without reloading it. Move the index of
+     * its bucket along, so that the symbols keep their cross-tile IDs.
+     */
+    handleTileWrapChange(tileID: OverscaledTileID, bucketInstanceId: number): void {
+        const zoomIndexes = this.indexes[tileID.overscaledZ];
+        if (!zoomIndexes || zoomIndexes[tileID.key]) return;
+        for (const key in zoomIndexes) {
+            const index = zoomIndexes[key];
+            if (index.bucketInstanceId !== bucketInstanceId) continue;
+            delete zoomIndexes[key];
+            index.tileID = tileID;
+            zoomIndexes[tileID.key] = index;
+            return;
+        }
+    }
+
     addBucket(tileID: OverscaledTileID, bucket: SymbolBucket, crossTileIDs: CrossTileIDs): boolean {
+        this.handleTileWrapChange(tileID, bucket.bucketInstanceId);
         if (this.indexes[tileID.overscaledZ]?.[tileID.key]) {
             if (this.indexes[tileID.overscaledZ][tileID.key].bucketInstanceId ===
                 bucket.bucketInstanceId) {

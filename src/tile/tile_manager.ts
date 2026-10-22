@@ -588,6 +588,10 @@ export class TileManager extends Evented<SourceEventType> {
             this.fire(new MapSourceDataEvent('data', {sourceDataType: 'idle', sourceId: this.id}));
         }
 
+        if (this._inViewTiles.moveTilesToWorldCopies(idealTileIDs)) {
+            this._resetTileReloadTimers();
+        }
+
         // Retain is a list of tiles that we shouldn't delete, even if they are not
         // the most ideal tile for the current viewport. This may include tiles like
         // parent or child tiles that are *already* loaded.

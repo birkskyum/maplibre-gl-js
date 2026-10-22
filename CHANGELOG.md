@@ -9,6 +9,7 @@
 - Fix `GeoJSONSource.getBounds` throwing when a feature has a `null` geometry ([#8814](https://github.com/maplibre/maplibre-gl-js/pull/8814)) (by [@auraseb](https://github.com/auraseb))
 - Fix characters covered by `font-faces` switching to glyphs from the glyphs URL once their PBF range is downloaded ([#8490](https://github.com/maplibre/maplibre-gl-js/pull/8490)) (by [@NEKOYASAN](https://github.com/NEKOYASAN))
 - Fix the map shrinking to a single stretched pixel for good when it resizes after the WebGL context is lost but before `webglcontextlost` fires, e.g. when a mobile browser returns from the background ([#8837](https://github.com/maplibre/maplibre-gl-js/issues/8837)) (by [@lazerg](https://github.com/lazerg))
+- Fix globe tiles disappearing for a moment and loading again when the center crosses 180°, passes near a pole or pans at low zoom ([#XXXX](https://github.com/maplibre/maplibre-gl-js/pull/XXXX)) (by [@birkskyum](https://github.com/birkskyum))
 - _...Add new stuff here..._
 
 ## 6.15.0
