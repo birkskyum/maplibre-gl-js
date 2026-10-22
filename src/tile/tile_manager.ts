@@ -627,7 +627,7 @@ export class TileManager extends Evented<SourceEventType> {
     }
 
     /**
-     * Whether every world copy of a tile is the same place, as on the globe, where the copies are only bookkeeping.
+     * Whether the projection allows no world copies, as on the globe, where every copy of a tile is the same place.
      */
     _worldCopiesAreOnePlace(): boolean {
         return this.transform?.getCoveringTilesDetailsProvider().allowWorldCopies() === false;
