@@ -618,9 +618,11 @@ export class TileManager extends Evented<SourceEventType> {
      */
     _moveTilesToWorldCopies(idealTileIDs: OverscaledTileID[]): void {
         if (!this._worldCopiesAreOnePlace()) return;
-        const moved = this._inViewTiles.moveTilesToWorldCopies(idealTileIDs);
-        if (moved) {
-            this._resetTileReloadTimers();
+        const movedTiles = this._inViewTiles.moveTilesToWorldCopies(idealTileIDs);
+        for (const previousKey in movedTiles) {
+            const tile = movedTiles[previousKey];
+            this._clearTileReloadTimer(previousKey);
+            this._setTileReloadTimer(tile.tileID.key, tile);
         }
     }
 
