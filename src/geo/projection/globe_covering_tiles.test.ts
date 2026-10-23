@@ -163,3 +163,12 @@ describe('poles', () => {
         expect(coveringTiles(transform, {tileSize: 32})).toHaveLength(56);
     });
 });
+
+test('covers the center tile at zoom 17', () => {
+    const transform = createGlobeTransform();
+    transform.resize(512, 512);
+    transform.setCenter(new LngLat(8.5417, 47.3769));
+    transform.setZoom(17);
+
+    expect(coveringTiles(transform, {tileSize: 512}).map(String)).toContain('17/68645/45899');
+});

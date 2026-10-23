@@ -552,8 +552,8 @@ export class VerticalPerspectiveTransform implements ITransform {
 
         this._cachedClippingPlane = this._computeClippingPlane(globeRadiusPixels);
 
-        const matrix = mat4.clone(this._globeViewProjMatrixF64Inverted);
-        mat4.scale(matrix, matrix, [1, 1, -1]);
+        const matrix = createMat4f64();
+        mat4.scale(matrix, this._globeViewProjMatrixF64Inverted, [1, 1, -1]);
         this._cachedFrustum = Frustum.fromInvProjectionMatrix(matrix, 1, 0, this._cachedClippingPlane, true);
     }
 
