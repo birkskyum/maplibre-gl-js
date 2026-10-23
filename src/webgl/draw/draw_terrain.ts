@@ -30,7 +30,7 @@ function drawDepth(painter: Painter, terrain: Terrain, frameRenderContext: Frame
     for (const tile of tiles) {
         const mesh = terrain.getTerrainMesh(tile.tileID, frameRenderContext.data.isRenderingGlobe);
         const terrainData = terrain.getTerrainData(tile.tileID);
-        const projectionData = tr.getProjectionData({overscaledTileID: tile.tileID, applyTerrainMatrix: false, applyGlobeMatrix: true});
+        const projectionData = tr.getProjectionData({overscaledTileID: tile.tileID, applyTerrainMatrix: false, applyGlobeMatrix: true, relativeToTile: true});
         const uniformValues = terrainDepthUniformValues(terrain.getSkirtLength(tr.zoom));
         program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }

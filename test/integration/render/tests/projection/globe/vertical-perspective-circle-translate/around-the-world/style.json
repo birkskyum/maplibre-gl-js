@@ -1,0 +1,74 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "width": 256,
+      "height": 256
+    }
+  },
+  "projection": {
+    "type": "vertical-perspective"
+  },
+  "zoom": 8,
+  "pitch": 60,
+  "bearing": 31,
+  "center": [
+    -92.3,
+    0.3
+  ],
+  "sky": {
+    "atmosphere-blend": 0
+  },
+  "sources": {
+    "point": {
+      "type": "geojson",
+      "maxzoom": 8,
+      "data": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            -92.3,
+            0.3
+          ]
+        }
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "white"
+      }
+    },
+    {
+      "id": "reference",
+      "type": "circle",
+      "source": "point",
+      "paint": {
+        "circle-radius": 10,
+        "circle-color": "red",
+        "circle-pitch-alignment": "map",
+        "circle-pitch-scale": "viewport"
+      }
+    },
+    {
+      "id": "around-the-world",
+      "type": "circle",
+      "source": "point",
+      "paint": {
+        "circle-radius": 5,
+        "circle-color": "blue",
+        "circle-pitch-alignment": "map",
+        "circle-pitch-scale": "viewport",
+        "circle-translate": [
+          131072,
+          0
+        ]
+      }
+    }
+  ]
+}

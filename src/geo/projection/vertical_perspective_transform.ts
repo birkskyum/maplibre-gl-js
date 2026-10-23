@@ -7,7 +7,7 @@ import Point from '@mapbox/point-geometry';
 import {MercatorCoordinate} from '../mercator_coordinate.ts';
 import {LngLatBounds} from '../lng_lat_bounds.ts';
 import {getMercatorTileCoordinates, tileCoordinatesToMercatorCoordinates} from './mercator_utils.ts';
-import {angularCoordinatesToSurfaceVector, clampToSphere, getGlobeRadiusPixels, getZoomAdjustment, horizonPlaneToCenterAndRadius, mercatorCoordinatesToAngularCoordinatesRadians, planetScaleAtLatitude, projectTileCoordinatesToSphere, raySphereIntersection, sphereSurfacePointToCoordinates} from './globe_utils.ts';
+import {angularCoordinatesRadiansToVector, angularCoordinatesToSurfaceVector, clampToSphere, getGlobeRadiusPixels, getZoomAdjustment, horizonPlaneToCenterAndRadius, mercatorCoordinatesToAngularCoordinatesRadians, planetScaleAtLatitude, projectTileCoordinatesToSphere, raySphereIntersection, sphereSurfacePointToCoordinates} from './globe_utils.ts';
 import {GlobeCoveringTilesDetailsProvider} from './globe_covering_tiles_details_provider.ts';
 import {Frustum} from '../../util/primitives/frustum.ts';
 import {bisect, sampleAt, isBelowTerrainSample, TERRAIN_OCCLUSION_MARGIN, type TerrainCoverageIndex, type TerrainSample} from '../../render/terrain_coverage.ts';
@@ -47,6 +47,20 @@ type GlobeRay = {
     origin: vec3;
     direction: vec3;
 };
+
+/**
+ * The globe matrix of one tile, relative to the tile's top-left corner, and that corner as `u_projection_tile_origin` takes it.
+ */
+type TileRelativeMatrix = {
+    matrix: Mat4f32;
+    tileOrigin: [number, number, number, number];
+};
+
+/**
+ * Tiles below this zoom span so much of the globe that their top-left corner can be far from what they draw,
+ * so they stay relative to the planet center.
+ */
+const MIN_TILE_RELATIVE_ZOOM = 3;
 
 export class VerticalPerspectiveTransform implements ITransform {
     private _helper: TransformHelper;
@@ -256,6 +270,7 @@ export class VerticalPerspectiveTransform implements ITransform {
     private _globeViewProjMatrixF64: mat4 = createIdentityMat4f64();
     private _globeViewProjMatrixF64Inverted: mat4 = createIdentityMat4f64();
     private _globeProjMatrixInverted: mat4 = createIdentityMat4f64();
+    private _tileRelativeMatrixCache: Map<string, TileRelativeMatrix> = new Map();
 
     private _cameraPosition: vec3 = createVec3f64();
     private _nearZ: number;
@@ -316,16 +331,35 @@ export class VerticalPerspectiveTransform implements ITransform {
     }
 
     getProjectionData(params: ProjectionDataParams): RendererProjectionData {
-        const {overscaledTileID, applyGlobeMatrix} = params;
+        const {overscaledTileID, applyGlobeMatrix, relativeToTile} = params;
         const mercatorTileCoordinates = getMercatorTileCoordinates(overscaledTileID);
+        const tileRelative = applyGlobeMatrix && relativeToTile && overscaledTileID?.canonical.z >= MIN_TILE_RELATIVE_ZOOM ? this._getTileRelativeMatrix(overscaledTileID.canonical) : null;
         return {
-            mainMatrix: this._globeViewProjMatrix32f,
+            mainMatrix: tileRelative?.matrix ?? this._globeViewProjMatrix32f,
             tileMercatorCoords: mercatorTileCoordinates,
             clippingPlane: this._cachedClippingPlane as [number, number, number, number],
+            tileOrigin: tileRelative?.tileOrigin ?? [0, 0, 0, 0],
             projectionTransition: applyGlobeMatrix ? 1 : 0,
             fallbackMatrix: this._globeViewProjMatrix32f,
             clipAntimeridian: overscaledTileID?.canonical.z === 0,
         };
+    }
+
+    /**
+     * The globe matrix moved to the tile's top-left corner, built in float64 so that the float32 copy only has to carry
+     * the small offsets from that corner, as the mercator tile matrices do.
+     */
+    private _getTileRelativeMatrix(canonical: CanonicalTileID): TileRelativeMatrix {
+        const cached = this._tileRelativeMatrixCache.get(canonical.key);
+        if (cached) return cached;
+
+        const scale = 1 << canonical.z;
+        const [lng, lat] = mercatorCoordinatesToAngularCoordinatesRadians(canonical.x / scale, canonical.y / scale);
+        const matrix = createMat4f64();
+        mat4.translate(matrix, this._globeViewProjMatrixF64, angularCoordinatesRadiansToVector(lng, lat));
+        const entry: TileRelativeMatrix = {matrix: new Float32Array(matrix), tileOrigin: [Math.sin(lng), Math.cos(lng), Math.tan(Math.PI / 4 + lat / 2), 1]};
+        this._tileRelativeMatrixCache.set(canonical.key, entry);
+        return entry;
     }
 
     private _computeClippingPlane(globeRadiusPixels: number): vec4 {
@@ -536,6 +570,7 @@ export class VerticalPerspectiveTransform implements ITransform {
         mat4.scale(globeMatrix, globeMatrix, scaleVec); // Scale the unit sphere to a sphere with diameter of 1
         this._globeViewProjMatrixF64 = globeMatrix;
         this._globeViewProjMatrix32f = new Float32Array(globeMatrix);
+        this._tileRelativeMatrixCache.clear();
 
         this._globeViewProjMatrixF64Inverted = createMat4f64();
         mat4.invert(this._globeViewProjMatrixF64Inverted, globeMatrix);

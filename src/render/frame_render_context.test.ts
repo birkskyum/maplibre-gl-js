@@ -21,8 +21,8 @@ describe('getProjectionDataForTile', () => {
 
         expect(projectionData).toEqual(projectionDataSpy.mock.results[0].value);
         expect(projectionDataSpy).toHaveBeenCalledTimes(2);
-        expect(projectionDataSpy).toHaveBeenNthCalledWith(1, {overscaledTileID: tileID, aligned: undefined, applyGlobeMatrix: true, applyTerrainMatrix: true});
-        expect(projectionDataSpy).toHaveBeenNthCalledWith(2, {overscaledTileID: tileID, aligned: true, applyGlobeMatrix: false, applyTerrainMatrix: false});
+        expect(projectionDataSpy).toHaveBeenNthCalledWith(1, {overscaledTileID: tileID, aligned: undefined, applyGlobeMatrix: true, applyTerrainMatrix: true, relativeToTile: true});
+        expect(projectionDataSpy).toHaveBeenNthCalledWith(2, {overscaledTileID: tileID, aligned: true, applyGlobeMatrix: false, applyTerrainMatrix: false, relativeToTile: true});
     });
 });
 

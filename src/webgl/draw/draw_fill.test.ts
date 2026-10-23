@@ -108,6 +108,7 @@ describe('drawFill', () => {
                     mainMatrix: fallback,
                     tileMercatorCoords: [0, 0, 1, 1],
                     clippingPlane: [0, 0, 0, 0],
+                    tileOrigin: [0, 0, 0, 0],
                     projectionTransition: 0.0,
                     fallbackMatrix: fallback,
                     clipAntimeridian: false,

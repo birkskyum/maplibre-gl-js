@@ -297,6 +297,7 @@ export class GlobeTransform implements ITransform {
         return {
             mainMatrix: this.isGlobeRendering ? verticalPerspectiveProjectionData.mainMatrix : mercatorProjectionData.mainMatrix,
             clippingPlane: verticalPerspectiveProjectionData.clippingPlane,
+            tileOrigin: this.isGlobeRendering ? verticalPerspectiveProjectionData.tileOrigin : [0, 0, 0, 0],
             tileMercatorCoords: verticalPerspectiveProjectionData.tileMercatorCoords,
             projectionTransition: params.applyGlobeMatrix ? this._globeness : 0,
             fallbackMatrix: mercatorProjectionData.fallbackMatrix,

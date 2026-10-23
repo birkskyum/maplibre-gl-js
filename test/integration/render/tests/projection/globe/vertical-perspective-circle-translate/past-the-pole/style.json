@@ -1,0 +1,72 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "width": 256,
+      "height": 256
+    }
+  },
+  "projection": {
+    "type": "vertical-perspective"
+  },
+  "zoom": 3,
+  "pitch": 60,
+  "center": [
+    67.5,
+    -84
+  ],
+  "sky": {
+    "atmosphere-blend": 0
+  },
+  "sources": {
+    "point": {
+      "type": "geojson",
+      "maxzoom": 3,
+      "data": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            67.5,
+            -84
+          ]
+        }
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "white"
+      }
+    },
+    {
+      "id": "reference",
+      "type": "circle",
+      "source": "point",
+      "paint": {
+        "circle-radius": 10,
+        "circle-color": "red"
+      }
+    },
+    {
+      "id": "past-the-pole",
+      "type": "circle",
+      "source": "point",
+      "paint": {
+        "circle-radius": 10,
+        "circle-color": "green",
+        "circle-pitch-alignment": "map",
+        "circle-pitch-scale": "viewport",
+        "circle-translate": [
+          0,
+          12288
+        ]
+      }
+    }
+  ],
+  "bearing": 180
+}

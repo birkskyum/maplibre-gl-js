@@ -52,6 +52,13 @@ export type ProjectionData<MainMatrix extends mat4 = mat4, FallbackMatrix extend
      */
     clippingPlane: [number, number, number, number];
     /**
+     * The tile's top-left corner on the unit sphere when `mainMatrix` projects positions relative to it, as the sine and cosine
+     * of its longitude, `tan(PI / 4 + latitude / 2)` and 1. All zero when positions are relative to the planet center.
+     * Used by globe projection, to keep float32 precision at high zoom.
+     * Uniform name: `u_projection_tile_origin`.
+     */
+    tileOrigin: [number, number, number, number];
+    /**
      * A value in range 0..1 indicating interpolation between mercator (0) and globe (1) projections.
      * Used by globe projection to hide projection transition at high zooms.
      * Uniform name: `u_projection_transition`.
@@ -94,4 +101,8 @@ export type ProjectionDataParams = {
      * Set to true if the globe matrix should be applied (i.e. when rendering globe)
      */
     applyGlobeMatrix?: boolean;
+    /**
+     * Set to true if globe projection may give `mainMatrix` relative to the tile, see `tileOrigin`.
+     */
+    relativeToTile?: boolean;
 };

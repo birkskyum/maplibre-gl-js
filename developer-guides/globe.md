@@ -8,7 +8,7 @@ The actual projection is done in three steps:
 
 - compute angular spherical coordinates from source web mercator tile data
 - convert spherical coordinates to a 3D vector - a point on the surface of a unit sphere
-- project the 3D vector using a common perspective projection matrix
+- project the 3D vector using a perspective projection matrix, moved to the corner of the drawn tile (see [Floating point precision](#floating-point-precision))
 
 So the globe is a unit sphere from the point of view of projection.
 This also simplifies a lot of math, and is used extensively in the globe transform class.
@@ -90,17 +90,27 @@ while also not generating too much new geometry and not overflowing the 16 bit v
 Raster tiles in particular need a relative high base granularity, as otherwise they would exhibit
 visible warping and deformations when changing zoom levels.
 
-## Floating point precision & transitioning to mercator
+## Floating point precision
 
 Shaders work with 32 bit floating point numbers (64 bit are possible on some platforms, but very slow).
 The 23 bits of mantissa and 1 sign bit can represent at most around 16 million values,
 but the circumference of the earth is roughly 40 000 km, which works out to
-about one float32 value per 2.5 meters, which is insufficient for a map.
-Thus if we were to use globe projection at all zoom levels, we would unsurprisingly encounter precision issues.
+about one float32 value per 2.5 meters. A position on the whole planet is only that precise in a shader.
 
 ![](assets/floats.png)
 
-To combat this, globe projection automatically switches to mercator projection around zoom level 12.
+So for tiles from zoom 3 the shader doesn't compute it. As with mercator's tile matrices, the big numbers stay on the CPU in float64.
+`VerticalPerspectiveTransform` moves the globe matrix to the drawn tile's top-left corner on the unit sphere,
+and passes that corner in `u_projection_tile_origin`.
+`projectToSphereOffset` then computes each vertex relative to the corner, from differences of nearby angles
+(such as `sin(a) - sin(b)` and `cos(x) - 1 = -2 sin(x/2)^2`) and small-angle polynomials instead of `sin`, `cos` and `exp` of large values,
+so float32 only holds small numbers.
+Tiles below zoom 3 span so much of the planet that their corner can be far from what they draw, so like custom layers and the sky
+they leave the last component of `u_projection_tile_origin` at zero, and their positions stay relative to the planet center.
+
+## Transition to mercator
+
+The `globe` projection switches to mercator projection around zoom level 12, while `vertical-perspective` stays a globe at every zoom.
 This transition is smooth, animated and can only be noticed if you look very closely,
 because globe and mercator projections converge at high zoom levels, and around level 12
 they are already very close.
