@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Worker on pages with a null origin</title>
+  <style>
+    body { margin: 0; font: 14px sans-serif; }
+    #bar { padding: 6px; }
+    #maps { display: flex; height: calc(100vh - 36px); }
+    iframe { flex: 1; border: 0; border-left: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <select id="scenario">
+      <option value="sandbox">Sandboxed iframe</option>
+      <option value="sandbox-blob">Sandboxed iframe, worker from a blob: URL</option>
+      <option value="iframe">Normal iframe</option>
+    </select>
+    <button id="reset">Reset</button>
+    Left: 6.16.0. Right: with the fix.
+  </div>
+  <div id="maps"></div>
+  <script>
+    const builds = [
+      'https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/',
+      'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@f372613fc760afaea79b696b705b6734e5df6aba/'
+    ];
+
+    function mapPage(base, blobWorker) {
+      return `<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.css">
+<style>body { margin: 0; } #map { position: absolute; inset: 0; } #error { position: absolute; top: 8px; left: 8px; color: #b00; background: #fff; font: 14px sans-serif; }</style>
+<div id="map"></div>
+<div id="error"></div>
+<script type="module">
+  const maplibregl = await import('${base}maplibre-gl.mjs');
+  if (${blobWorker}) {
+    const code = await (await fetch('${base}maplibre-gl-worker.mjs')).text();
+    maplibregl.setWorkerUrl(URL.createObjectURL(new Blob([code], {type: 'text/javascript'})));
+  }
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [11, 50],
+    zoom: 3.5
+  });
+  map.on('error', (e) => { document.getElementById('error').textContent = e.error.message; });
+<\/script>`;
+    }
+
+    function show() {
+      const scenario = document.getElementById('scenario').value;
+      const maps = document.getElementById('maps');
+      maps.innerHTML = '';
+      for (const base of builds) {
+        const frame = document.createElement('iframe');
+        if (scenario !== 'iframe') frame.sandbox = 'allow-scripts';
+        frame.src = URL.createObjectURL(new Blob([mapPage(base, scenario === 'sandbox-blob')], {type: 'text/html'}));
+        maps.append(frame);
+      }
+    }
+
+    document.getElementById('scenario').onchange = show;
+    document.getElementById('reset').onclick = show;
+    show();
+  </script>
+</body>
+</html>
