@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Identity projection: drag outside the vertical bounds</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; background: #888; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="zoomedOut">Zoomed out</option>
+        <option value="north">North edge at the center</option>
+        <option value="south">South edge at the center</option>
+        <option value="east">East edge at the center</option>
+    </select>
+    <button id="reset">Reset both</button>
+    Left - 6.16.0 / Right - This PR
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    import * as released from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.mjs';
+    import * as fixed from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@42c90e88f42d8af3600cd79a04d44e2b00229bd0/maplibre-gl.mjs';
+
+    const scenarios = {
+        zoomedOut: {center: [0, 45], zoom: -1},
+        north: {center: [0, 90], zoom: -1},
+        south: {center: [0, -90], zoom: -1},
+        east: {center: [90, 0], zoom: -1}
+    };
+    const style = {
+        version: 8,
+        projection: {type: 'identity'},
+        sources: {
+            rgb: {
+                type: 'raster',
+                tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '&copy; OpenStreetMap Contributors',
+                maxzoom: 19
+            }
+        },
+        layers: [{id: 'rgb', type: 'raster', source: 'rgb'}]
+    };
+
+    const select = document.getElementById('scenario');
+    window.maps = {
+        before: new released.Map({container: 'before', style, minZoom: -Infinity, ...scenarios[select.value]}),
+        after: new fixed.Map({container: 'after', style, minZoom: -Infinity, ...scenarios[select.value]})
+    };
+
+    function reset() {
+        for (const map of Object.values(window.maps)) map.jumpTo(scenarios[select.value]);
+    }
+    select.addEventListener('change', reset);
+    document.getElementById('reset').addEventListener('click', reset);
+</script>
+</body>
+</html>
