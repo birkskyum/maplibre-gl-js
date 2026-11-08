@@ -1111,8 +1111,9 @@ export class VerticalPerspectiveTransform implements ITransform {
 
     getProjectionDataForCustomLayer(applyGlobeMatrix: boolean = true): CustomLayerProjectionData {
         const globeData = this.getProjectionData({overscaledTileID: new OverscaledTileID(0, 0, 0, 0, 0), applyGlobeMatrix});
-        globeData.tileMercatorCoords = [0, 0, 1, 1];
-        return globeData;
+        const mainMatrix = createMat4f64();
+        mat4.copy(mainMatrix, this._globeViewProjMatrixF64);
+        return {...globeData, mainMatrix, tileMercatorCoords: [0, 0, 1, 1]};
     }
 
     getFastPathSimpleProjectionMatrix(_tileID: OverscaledTileID): mat4 {

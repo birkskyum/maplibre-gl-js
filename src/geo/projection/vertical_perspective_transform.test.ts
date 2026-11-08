@@ -335,3 +335,11 @@ describe('VerticalPerspectiveTransform resize', () => {
         expect(transform.center.lat).toBe(89);
     });
 });
+
+test('gives custom layers the globe matrix in float64, as mercator does', () => {
+    const transform = createVerticalPerspectiveTransform();
+    transform.resize(512, 512);
+    transform.setZoom(20);
+    transform.setCenter(new LngLat(8.5417, 47.3769));
+    expect(transform.getProjectionDataForCustomLayer().mainMatrix).toBeInstanceOf(Float64Array);
+});
