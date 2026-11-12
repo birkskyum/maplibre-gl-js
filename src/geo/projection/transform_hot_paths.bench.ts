@@ -18,7 +18,7 @@ function createTransform(): Transform {
 }
 
 const transform = createTransform();
-let freshTransform: Transform;
+let movingTransform: Transform;
 const cameraHelper = new MercatorCameraHelper();
 const points: Point[] = [];
 const lngLats: LngLat[] = [];
@@ -29,10 +29,10 @@ for (let i = 0; i < 100; i++) {
 
 test('transform hot paths', async ({bench}) => {
     await bench.compare(
-        bench('recalculateZoomAndCenter (per-frame terrain path)', {beforeEach: () => { freshTransform = createTransform(); }}, () => {
+        bench('recalculateZoomAndCenter (per-frame terrain path)', {beforeEach: () => { movingTransform = createTransform(); }}, () => {
             for (let i = 0; i < 100; i++) {
-                freshTransform.setElevation(i % 2 ? 250 : 0);
-                freshTransform.recalculateZoomAndCenter();
+                movingTransform.setElevation(i % 2 ? 250 : 0);
+                movingTransform.recalculateZoomAndCenter();
             }
         }),
         bench('calculateCenterFromCameraLngLatAlt (iterative)', () => {
@@ -55,9 +55,9 @@ test('transform hot paths', async ({bench}) => {
                 transform.locationToScreenPoint(lngLats[i]);
             }
         }),
-        bench('setLocationAtPoint', {beforeEach: () => { freshTransform = createTransform(); }}, () => {
+        bench('setLocationAtPoint', {beforeEach: () => { movingTransform = createTransform(); }}, () => {
             for (let i = 0; i < 100; i++) {
-                freshTransform.setLocationAtPoint(lngLats[i], points[i]);
+                movingTransform.setLocationAtPoint(lngLats[i], points[i]);
             }
         }),
         bench('coveringTiles', () => {
