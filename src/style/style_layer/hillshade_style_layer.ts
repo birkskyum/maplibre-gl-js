@@ -38,6 +38,13 @@ export class HillshadeStyleLayer extends StyleLayer {
         return {directionRadians, altitudeRadians, shadowColor, highlightColor};
     }
 
+    /**
+     * Whether the light turns with the viewport, so that what the layer draws changes with the map bearing.
+     */
+    isLitFromViewport(): boolean {
+        return this.paint.get('hillshade-illumination-anchor') === 'viewport';
+    }
+
     hasOffscreenPass(): boolean {
         return this.paint.get('hillshade-exaggeration') !== 0 && !this.isHidden();
     }

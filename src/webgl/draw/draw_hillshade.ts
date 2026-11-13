@@ -3,16 +3,18 @@ import {StencilMode} from '../stencil_mode.ts';
 import {DepthMode} from '../depth_mode.ts';
 import {CullFaceMode} from '../cull_face_mode.ts';
 import {
+    getTileLatRange,
     hillshadeUniformValues,
     hillshadeUniformPrepareValues
 } from '../program/hillshade_program.ts';
+import {ColorMode} from '../color_mode.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
-import type {ColorMode} from '../color_mode.ts';
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
 import type {HillshadeStyleLayer} from '../../style/style_layer/hillshade_style_layer.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
+import type {Framebuffer} from '../framebuffer.ts';
 
 export function drawHillshade(painter: Painter, tileManager: TileManager, layer: HillshadeStyleLayer, tileIDs: OverscaledTileID[], frameRenderContext: FrameRenderContext): void {
     if (frameRenderContext.currentPass !== 'offscreen' && frameRenderContext.currentPass !== 'translucent') return;
@@ -57,6 +59,7 @@ function renderHillshade(
     const gl = context.gl;
 
     const defines = [`#define NUM_ILLUMINATION_SOURCES ${layer.paint.get('hillshade-highlight-color').values.length}`];
+    if (frameRenderContext.isRenderingToTexture && layer.isLitFromViewport()) defines.push('#define HILLSHADE_SLOPES');
     const program = frameRenderContext.useProgram('hillshade', null, false, defines);
     const align = !frameRenderContext.data.moving;
 
@@ -76,8 +79,35 @@ function renderHillshade(
         const projectionData = frameRenderContext.getProjectionDataForTile(coord, {aligned: align});
 
         program.draw(context, gl.TRIANGLES, depthMode, stencilModes[coord.overscaledZ], colorMode, CullFaceMode.backCCW,
-            hillshadeUniformValues(frameRenderContext.projectedCamera, frameRenderContext.worldCoordinateHelper, tile, layer), terrainData, projectionData, layer.id, mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
+            hillshadeUniformValues(frameRenderContext.projectedCamera, getTileLatRange(frameRenderContext.worldCoordinateHelper, tile.tileID), layer), terrainData, projectionData, layer.id, mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }
+}
+
+/** Texels per side of a hillshade table. */
+const HILLSHADE_TABLE_SIZE = 256;
+
+/**
+ * Draws the layer's table, the color it shades every slope with under the current light, and returns its texture.
+ * The terrain looks its slopes up in it, so a light that turns with the viewport redraws this table and nothing else.
+ */
+export function drawHillshadeTable(painter: Painter, layer: HillshadeStyleLayer, target: Framebuffer | undefined, frameRenderContext: FrameRenderContext): Framebuffer {
+    const context = frameRenderContext.context;
+    const gl = context.gl;
+    if (!target) {
+        const texture = new Texture(context, {width: HILLSHADE_TABLE_SIZE, height: HILLSHADE_TABLE_SIZE, data: null}, gl.RGBA);
+        texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
+        target = context.createFramebuffer(HILLSHADE_TABLE_SIZE, HILLSHADE_TABLE_SIZE, false, false);
+        target.colorAttachment.set(texture.texture);
+    }
+    context.bindFramebuffer.set(target.framebuffer);
+    context.viewport.set([0, 0, HILLSHADE_TABLE_SIZE, HILLSHADE_TABLE_SIZE]);
+    const defines = [`#define NUM_ILLUMINATION_SOURCES ${layer.paint.get('hillshade-highlight-color').values.length}`, '#define HILLSHADE_TABLE'];
+    frameRenderContext.useProgram('hillshade', null, true, defines).draw(context, gl.TRIANGLES,
+        DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled,
+        hillshadeUniformValues(frameRenderContext.projectedCamera, [0, 0], layer),
+        null, null, layer.id, painter.rasterBoundsBuffer,
+        painter.quadTriangleIndexBuffer, painter.rasterBoundsSegments);
+    return target;
 }
 
 // hillshade rendering is done in two steps. the prepare step first calculates the slope of the terrain in the x and y

@@ -1,6 +1,7 @@
 import {
     Uniform1i,
     Uniform1f,
+    Uniform2f,
     Uniform4f,
     UniformMatrix4f,
     UniformColor
@@ -30,6 +31,17 @@ export type TerrainUniformsType = {
     'u_is_globe_mode': Uniform1f;
 };
 
+export type TerrainShadeUniformsType = {
+    'u_texture': Uniform1i;
+    'u_table': Uniform1i;
+    'u_latrange': Uniform2f;
+    'u_ele_delta': Uniform1f;
+    'u_fog_matrix': UniformMatrix4f;
+    'u_fog_ground_blend': Uniform1f;
+    'u_fog_ground_blend_opacity': Uniform1f;
+    'u_is_globe_mode': Uniform1f;
+};
+
 export type TerrainDepthUniformsType = {
     'u_ele_delta': Uniform1f;
 };
@@ -52,6 +64,17 @@ const terrainUniforms = (context: Context, locations: UniformLocations): Terrain
     'u_fog_ground_blend_opacity': new Uniform1f(context, locations.u_fog_ground_blend_opacity),
     'u_horizon_color': new UniformColor(context, locations.u_horizon_color),
     'u_horizon_fog_blend': new Uniform1f(context, locations.u_horizon_fog_blend),
+    'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode)
+});
+
+const terrainShadeUniforms = (context: Context, locations: UniformLocations): TerrainShadeUniformsType => ({
+    'u_texture': new Uniform1i(context, locations.u_texture),
+    'u_table': new Uniform1i(context, locations.u_table),
+    'u_latrange': new Uniform2f(context, locations.u_latrange),
+    'u_ele_delta': new Uniform1f(context, locations.u_ele_delta),
+    'u_fog_matrix': new UniformMatrix4f(context, locations.u_fog_matrix),
+    'u_fog_ground_blend': new Uniform1f(context, locations.u_fog_ground_blend),
+    'u_fog_ground_blend_opacity': new Uniform1f(context, locations.u_fog_ground_blend_opacity),
     'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode)
 });
 
@@ -81,6 +104,26 @@ const terrainUniformValues = (
     'u_is_globe_mode': isGlobeMode ? 1 : 0
 });
 
+/**
+ * @param latRange - the latitudes of the terrain tile's north and south edges, which stretch the slopes it shades
+ */
+const terrainShadeUniformValues = (
+    eleDelta: number,
+    fogMatrix: mat4,
+    sky: Readonly<SkyPropsPossiblyEvaluated> | undefined,
+    pitch: number,
+    isGlobeMode: boolean,
+    latRange: [number, number]): UniformValues<TerrainShadeUniformsType> => ({
+    'u_texture': 0,
+    'u_table': 1,
+    'u_latrange': latRange,
+    'u_ele_delta': eleDelta,
+    'u_fog_matrix': fogMatrix,
+    'u_fog_ground_blend': sky ? sky['fog-ground-blend'] : 1,
+    'u_fog_ground_blend_opacity': isGlobeMode ? 0 : (sky ? calculateFogBlendOpacity(pitch) : 0),
+    'u_is_globe_mode': isGlobeMode ? 1 : 0
+});
+
 const terrainDepthUniformValues = (
     eleDelta: number
 ): UniformValues<TerrainDepthUniformsType> => ({
@@ -96,4 +139,4 @@ const terrainHeightUniformValues = (
     'u_tile_bounds': tileBounds
 });
 
-export {terrainUniforms, terrainDepthUniforms, terrainHeightUniforms, terrainPreludeUniforms, terrainUniformValues, terrainDepthUniformValues, terrainHeightUniformValues};
+export {terrainUniforms, terrainShadeUniforms, terrainShadeUniformValues, terrainDepthUniforms, terrainHeightUniforms, terrainPreludeUniforms, terrainUniformValues, terrainDepthUniformValues, terrainHeightUniformValues};

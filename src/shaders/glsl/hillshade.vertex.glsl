@@ -5,6 +5,11 @@ layout(location = 0) in vec2 a_pos;
 out vec2 v_pos;
 
 void main() {
+#ifdef HILLSHADE_TABLE
+    gl_Position = vec4(a_pos / 8192.0 * 2.0 - 1.0, 0.0, 1.0);
+    v_pos = a_pos / 8192.0;
+    return;
+#endif
     gl_Position = projectTile(a_pos, a_pos);
     v_pos = a_pos / 8192.0;
     // North pole

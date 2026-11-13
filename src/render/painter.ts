@@ -477,7 +477,8 @@ export class Painter {
 
     acquireRTT(size: number): RTTObject {
         const gl = this.context.gl;
-        const obj = this._rttObjectRecyclePool.pop();
+        const sameSize = this._rttObjectRecyclePool.findIndex(pooled => pooled.size === size);
+        const obj = sameSize === -1 ? this._rttObjectRecyclePool.pop() : this._rttObjectRecyclePool.splice(sameSize, 1)[0];
         if (obj) {
             if (obj.size !== size) {
                 obj.texture.update({width: size, height: size, data: null}, {premultiply: false, useMipmap: true});

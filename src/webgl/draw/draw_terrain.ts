@@ -1,6 +1,7 @@
 import {StencilMode} from '../stencil_mode.ts';
 import {DepthMode} from '../depth_mode.ts';
-import {terrainUniformValues, terrainDepthUniformValues, terrainHeightUniformValues} from '../program/terrain_program.ts';
+import {terrainUniformValues, terrainShadeUniformValues, terrainDepthUniformValues, terrainHeightUniformValues} from '../program/terrain_program.ts';
+import {getTileLatRange} from '../program/hillshade_program.ts';
 import {CullFaceMode} from '../cull_face_mode.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {ColorMode} from '../color_mode.ts';
@@ -66,6 +67,38 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRen
 }
 
 /**
+ * Draws a hillshade over the terrain from the slopes draped into the tiles' textures, lit by the layer's table.
+ */
+function drawTerrainShade(painter: Painter, terrain: Terrain, tiles: Tile[], table: WebGLTexture, frameRenderContext: FrameRenderContext): void {
+    const {isRenderingGlobe} = frameRenderContext.data;
+    const context = frameRenderContext.context;
+    const gl = context.gl;
+    const projectedCamera = frameRenderContext.projectedCamera;
+    const colorMode = frameRenderContext.colorModeForRenderPass();
+    const depthMode = frameRenderContext.getDepthModeFor3D();
+    const program = frameRenderContext.useProgram('terrainShade');
+
+    context.bindFramebuffer.set(null);
+    context.viewport.set([0, 0, painter.width, painter.height]);
+
+    for (const tile of tiles) {
+        const mesh = terrain.getTerrainMesh(tile.tileID, isRenderingGlobe);
+        const texture = painter.renderToTexture.getTexture(tile);
+        const terrainData = terrain.getTerrainData(tile.tileID);
+        context.activeTexture.set(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, table);
+        context.activeTexture.set(gl.TEXTURE0);
+        texture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE, gl.LINEAR_MIPMAP_LINEAR);
+        const eleDelta = terrain.getSkirtLength(projectedCamera.zoom);
+        const fogMatrix = getCameraMath(projectedCamera).calculateFogMatrix(projectedCamera, tile.tileID.toUnwrapped());
+        const latRange = getTileLatRange(frameRenderContext.worldCoordinateHelper, tile.tileID);
+        const uniformValues = terrainShadeUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, projectedCamera.pitch, isRenderingGlobe, latRange);
+        const projectionData = frameRenderContext.getProjectionDataForTile(tile.tileID, {applyTerrainMatrix: false});
+        program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
+    }
+}
+
+/**
  * Draws the elevation of the loaded renderable terrain tiles into a texture, see {@link CustomRenderMethodInput.renderTerrainHeightMap}.
  */
 function drawTerrainHeightMap(frameRenderContext: FrameRenderContext, terrain: Terrain, target: TerrainHeightMapTarget): void {
@@ -97,6 +130,7 @@ function drawTerrainHeightMap(frameRenderContext: FrameRenderContext, terrain: T
 
 export {
     drawTerrain,
+    drawTerrainShade,
     drawDepth,
     drawTerrainHeightMap
 };

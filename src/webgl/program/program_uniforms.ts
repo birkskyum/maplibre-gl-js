@@ -10,7 +10,7 @@ import {layerCompositeUniforms, type LayerCompositeUniformsType} from './layer_c
 import {rasterUniforms, type RasterUniformsType} from './raster_program.ts';
 import {symbolIconUniforms, symbolSDFUniforms, symbolTextAndIconUniforms, type SymbolIconUniformsType, type SymbolSDFUniformsType, type symbolTextAndIconUniformsType} from './symbol_program.ts';
 import {backgroundUniforms, backgroundPatternUniforms, type BackgroundUniformsType, type BackgroundPatternUniformsType} from './background_program.ts';
-import {terrainUniforms, terrainDepthUniforms, terrainHeightUniforms, type TerrainUniformsType, type TerrainDepthUniformsType, type TerrainHeightUniformsType} from './terrain_program.ts';
+import {terrainUniforms, terrainShadeUniforms, terrainDepthUniforms, terrainHeightUniforms, type TerrainUniformsType, type TerrainShadeUniformsType, type TerrainDepthUniformsType, type TerrainHeightUniformsType} from './terrain_program.ts';
 import {atmosphereUniforms, type atmosphereUniformsType} from './atmosphere_program.ts';
 import {skyUniforms, type SkyUniformsType} from './sky_program.ts';
 
@@ -52,6 +52,7 @@ export const programUniforms: {
     background: (context: Context, locations: UniformLocations) => BackgroundUniformsType;
     backgroundPattern: (context: Context, locations: UniformLocations) => BackgroundPatternUniformsType;
     terrain: (context: Context, locations: UniformLocations) => TerrainUniformsType;
+    terrainShade: (context: Context, locations: UniformLocations) => TerrainShadeUniformsType;
     terrainDepth: (context: Context, locations: UniformLocations) => TerrainDepthUniformsType;
     terrainHeight: (context: Context, locations: UniformLocations) => TerrainHeightUniformsType;
     atmosphere: (context: Context, locations: UniformLocations) => atmosphereUniformsType;
@@ -87,6 +88,7 @@ export const programUniforms: {
     background: backgroundUniforms,
     backgroundPattern: backgroundPatternUniforms,
     terrain: terrainUniforms,
+    terrainShade: terrainShadeUniforms,
     terrainDepth: terrainDepthUniforms,
     terrainHeight: terrainHeightUniforms,
     atmosphere: atmosphereUniforms,

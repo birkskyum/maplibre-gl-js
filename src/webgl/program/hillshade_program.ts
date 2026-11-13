@@ -13,7 +13,6 @@ import {EXTENT} from '../../data/extent.ts';
 
 import type {Context} from '../../webgl/context.ts';
 import type {UniformValues, UniformLocations} from '../uniform_binding.ts';
-import type {Tile} from '../../tile/tile.ts';
 import type {HillshadeStyleLayer} from '../../style/style_layer/hillshade_style_layer.ts';
 import type {DEMData} from '../../data/dem_data.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
@@ -62,10 +61,12 @@ const hillshadePrepareUniforms = (context: Context, locations: UniformLocations)
     'u_log2_world_width': new Uniform1f(context, locations.u_log2_world_width)
 });
 
+/**
+ * @param latRange - the latitudes of the top and bottom edges of what is drawn, see {@link getTileLatRange}
+ */
 const hillshadeUniformValues = (
     projectedCamera: ProjectedCamera,
-    worldCoordinateHelper: WorldCoordinateHelper,
-    tile: Tile,
+    latRange: [number, number],
     layer: HillshadeStyleLayer,
 ): UniformValues<HillshadeUniformsType> => {
     const accent = layer.paint.get('hillshade-accent-color');
@@ -99,7 +100,7 @@ const hillshadeUniformValues = (
     }
     return {
         'u_image': 0,
-        'u_latrange': getTileLatRange(worldCoordinateHelper, tile.tileID),
+        'u_latrange': latRange,
         'u_exaggeration': layer.paint.get('hillshade-exaggeration'),
         'u_altitudes': illumination.altitudeRadians,
         'u_azimuths': illumination.directionRadians,
@@ -155,6 +156,7 @@ function getTileLatRange(worldCoordinateHelper: WorldCoordinateHelper, tileID: O
 }
 
 export {
+    getTileLatRange,
     hillshadeUniforms,
     hillshadePrepareUniforms,
     hillshadeUniformValues,

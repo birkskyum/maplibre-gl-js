@@ -151,15 +151,27 @@ void combined_hillshade(vec2 deriv)
 }
 
 void main() {
+#ifdef HILLSHADE_TABLE
+    // The table holds the color of every slope: each derivative d sits at d / (1 + |d|), finest at gentle slopes.
+    highp vec2 squeezed = v_pos * 2.0 - 1.0;
+    vec2 deriv = squeezed / (1.0 - abs(squeezed));
+#else
     highp vec2 size = vec2(textureSize(u_image, 0));
     highp vec2 texturePos = (v_pos * (size - 2.0) + 1.0) / size;
     vec4 pixel = texture(u_image, texturePos);
+
+#ifdef HILLSHADE_SLOPES
+    // The slopes unlit, for the terrain to light when it is drawn.
+    fragColor = vec4(pixel.rg, 0.0, 1.0);
+    return;
+#endif
 
     // We divide the slope by a scale factor based on the cosin of the pixel's approximate latitude
     // to account for mercator projection distortion. see #4807 for details
     float scaleFactor = cos(radians((u_latrange[0] - u_latrange[1]) * (1.0 - v_pos.y) + u_latrange[1]));
 
     vec2 deriv = (pixel.rg - 128.0 / 255.0) * 8.0 / scaleFactor;
+#endif
 
     if (u_method == BASIC) {
         basic_hillshade(deriv);
