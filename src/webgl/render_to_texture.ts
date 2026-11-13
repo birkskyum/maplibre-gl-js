@@ -4,6 +4,7 @@ import {setFrameUniformWorldSize} from './frame_uniform_buffer.ts';
 import {ImageSource} from '../source/image_source.ts';
 import {RTT_DIFFERENCES, RTTFingerprint, type RTTDifference} from './rtt_fingerprint.ts';
 import {isCustomStyleLayer} from '../style/style_layer/custom_style_layer.ts';
+import {isHillshadeStyleLayer} from '../style/style_layer/hillshade_style_layer.ts';
 
 import type {Tile} from '../tile/tile.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
@@ -40,6 +41,13 @@ function rttFingerprintKey(layer: StyleLayer): string | undefined {
 function isRenderedToTexture(layer: StyleLayer): boolean {
     if (isCustomStyleLayer(layer)) return layer.implementation.renderToTerrainTile !== undefined;
     return LAYERS_TO_TEXTURES[layer.type] === true;
+}
+
+/**
+ * Whether the layer is lit from the viewport, so that what it draws changes with the map bearing.
+ */
+function isLitFromViewport(layer: StyleLayer): boolean {
+    return isHillshadeStyleLayer(layer) && layer.paint.get('hillshade-illumination-anchor') === 'viewport';
 }
 
 /**
@@ -129,9 +137,11 @@ export class RenderToTexture {
      * source tiles under them are re-rendered one per frame too, `needsFollowUpFrame` bringing in the rest.
      * Textures whose visible layer set changed (a layer entered or left its zoom range) are kept while the zoom
      * is changing and then all re-rendered in the same frame, since a tile-by-tile change would show; a source
-     * data change re-renders immediately.
+     * data change re-renders immediately, and so does a bearing change under a layer lit from the viewport,
+     * which keeps its light in place while the map rotates.
+     * @param bearing - the map bearing in radians
      */
-    prepareForRender(style: Style, zoom: number, isMoving: boolean): void {
+    prepareForRender(style: Style, zoom: number, isMoving: boolean, bearing: number): void {
         const zoomChanged = zoom !== this._lastPrepareZoom;
         this._lastPrepareZoom = zoom;
         this._stacks = [];
@@ -143,10 +153,12 @@ export class RenderToTexture {
         const visibleLayerIds = this._renderableLayerIds.join();
 
         const rttSourceIds = new Set<string>();
+        const viewportLitSourceIds = new Set<string>();
         for (const layerId of this._renderableLayerIds) {
             const layer = style._layers[layerId];
             const source = layer.source;
             if (source && LAYERS_TO_TEXTURES[layer.type]) rttSourceIds.add(source);
+            if (isLitFromViewport(layer)) viewportLitSourceIds.add(source);
         }
 
         this._coordsAscending = {};
@@ -170,8 +182,9 @@ export class RenderToTexture {
             this._rttFingerprints[sourceId] = {};
             const fingerprints = this._rttFingerprints[sourceId];
             const revision = tileManager.getState().revision;
+            const sourceBearing = viewportLitSourceIds.has(sourceId) ? bearing : 0;
             for (const key in coordsAscending)
-                fingerprints[key] = new RTTFingerprint(coordsAscending[key], revision, zoom, visibleLayerIds);
+                fingerprints[key] = new RTTFingerprint(coordsAscending[key], revision, zoom, visibleLayerIds, sourceBearing);
         }
 
         for (const layerId of this._renderableLayerIds) {
@@ -180,7 +193,7 @@ export class RenderToTexture {
             const revision = layer.implementation.terrainTileRevision ?? 0;
             const fingerprints: Record<string, RTTFingerprint> = {};
             for (const tile of this._renderableTiles) {
-                fingerprints[tile.tileID.key] = new RTTFingerprint([tile.tileID], revision, zoom, visibleLayerIds);
+                fingerprints[tile.tileID.key] = new RTTFingerprint([tile.tileID], revision, zoom, visibleLayerIds, 0);
             }
             this._rttFingerprints[rttFingerprintKey(layer)] = fingerprints;
         }

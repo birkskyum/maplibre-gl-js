@@ -288,7 +288,7 @@ export class Painter {
         this.maybeDrawDepth(frameRenderContext);
 
         if (this.renderToTexture) {
-            this.renderToTexture.prepareForRender(style, projectedCamera.zoom, data.moving);
+            this.renderToTexture.prepareForRender(style, projectedCamera.zoom, data.moving, projectedCamera.bearingInRadians);
             // this is disabled, because render-to-texture is rendering all layers from bottom to top.
             frameRenderContext.opaquePassCutoff = 0;
         }
