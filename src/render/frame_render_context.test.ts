@@ -24,6 +24,19 @@ describe('getProjectionDataForTile', () => {
         expect(textureProjectionData).toEqual(getCameraMath(projectedCamera).getProjectionData(projectedCamera, {overscaledTileID: tileID, aligned: true, applyGlobeMatrix: false, applyTerrainMatrix: false}));
         expect(textureProjectionData.projectionTransition).not.toBe(projectionData.projectionTransition);
     });
+
+    test('computes the projection data of a tile drawn to the screen once per frame', () => {
+        const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
+        const {projectedCamera, context} = createTestCamera({width: 512, height: 512});
+        const frameRenderContext = new FrameRenderContext({projectedCamera, worldCoordinateHelper: context.worldCoordinateHelper, terrain: null, data: createFrameRenderData(), context: null, programCache: null, currentPass: 'translucent', projection: null});
+
+        const projectionData = frameRenderContext.getProjectionDataForTile(tileID);
+
+        expect(frameRenderContext.getProjectionDataForTile(tileID)).toBe(projectionData);
+        expect(frameRenderContext.getProjectionDataForTile(tileID, {aligned: true})).not.toBe(projectionData);
+        frameRenderContext.isRenderingToTexture = true;
+        expect(frameRenderContext.getProjectionDataForTile(tileID)).not.toBe(projectionData);
+    });
 });
 
 describe('getTerrainDataForTile', () => {

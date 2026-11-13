@@ -114,6 +114,8 @@ export class FrameRenderContext {
     private currentStencilSource: string;
     private nextStencilID: number = 1;
     private tileClippingMaskIDs: Record<string, number> = {};
+    /** The projection data of the tiles drawn to the screen so far in this frame, by tile key. */
+    private tileProjectionData: Map<string, RendererProjectionData> = new Map();
 
     constructor(options: FrameRenderContextOptions) {
         this.projectedCamera = options.projectedCamera;
@@ -126,7 +128,22 @@ export class FrameRenderContext {
         this.projection = options.projection;
     }
 
-    getProjectionDataForTile(tileID: OverscaledTileID, options: {aligned?: boolean; applyTerrainMatrix?: boolean} = {}): RendererProjectionData {
+    /**
+     * Returns the projection data a draw of the tile needs. Layers drawing the same source tile to the screen
+     * with the default options share one result per frame.
+     */
+    getProjectionDataForTile(tileID: OverscaledTileID, options?: {aligned?: boolean; applyTerrainMatrix?: boolean}): RendererProjectionData {
+        if (options || this.isRenderingToTexture || tileID.terrainRttPosMatrix32f) return this.calculateProjectionDataForTile(tileID, options ?? {});
+
+        let projectionData = this.tileProjectionData.get(tileID.key);
+        if (!projectionData) {
+            projectionData = this.calculateProjectionDataForTile(tileID, {});
+            this.tileProjectionData.set(tileID.key, projectionData);
+        }
+        return projectionData;
+    }
+
+    private calculateProjectionDataForTile(tileID: OverscaledTileID, options: {aligned?: boolean; applyTerrainMatrix?: boolean}): RendererProjectionData {
         const projectionData = getCameraMath(this.projectedCamera).getProjectionData(this.projectedCamera, {
             overscaledTileID: tileID,
             aligned: options.aligned,
