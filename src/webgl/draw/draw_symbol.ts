@@ -332,6 +332,11 @@ function drawLayerSymbols(
 
     const pitchedTextRescaling = getCameraMath(projectedCamera).getCircleRadiusCorrection(projectedCamera);
 
+    let previousPixelsToTileUnits: number;
+    let pitchedLabelPlaneMatrix: mat4;
+    let pitchedLabelPlaneMatrixInverse: mat4;
+    let glCoordMatrixForShader: mat4;
+
     for (const coord of coords) {
         const tile = tileManager.getTile(coord);
         const bucket = tile.getBucket(layer) as SymbolBucket;
@@ -377,8 +382,15 @@ function drawLayerSymbols(
 
         // See the comment at the beginning of src/symbol/projection.ts for an overview of the symbol projection process
         const s = pixelsToTileUnits(tile, 1, frameRenderContext.projectedCamera.zoom);
-        const pitchedLabelPlaneMatrix = getPitchedLabelPlaneMatrix(rotateWithMap, frameRenderContext.projectedCamera, s);
-        const glCoordMatrixForShader = getGlCoordMatrix(pitchWithMap, rotateWithMap, frameRenderContext.projectedCamera, s);
+        if (s !== previousPixelsToTileUnits) {
+            previousPixelsToTileUnits = s;
+            pitchedLabelPlaneMatrix = getPitchedLabelPlaneMatrix(rotateWithMap, frameRenderContext.projectedCamera, s);
+            glCoordMatrixForShader = getGlCoordMatrix(pitchWithMap, rotateWithMap, frameRenderContext.projectedCamera, s);
+            if (alongLine) {
+                pitchedLabelPlaneMatrixInverse = mat4.create();
+                fastInvertTransformMat4(pitchedLabelPlaneMatrixInverse, pitchedLabelPlaneMatrix);
+            }
+        }
 
         const translation = translatePosition(projectedCamera, tile, translate, translateAnchor);
         const projectionData = frameRenderContext.getProjectionDataForTile(coord);
@@ -391,9 +403,6 @@ function drawLayerSymbols(
         const heightAnchorGround = layer.layout.get('symbol-height-anchor') === 'ground';
 
         if (alongLine) {
-            const pitchedLabelPlaneMatrixInverse = mat4.create();
-            fastInvertTransformMat4(pitchedLabelPlaneMatrixInverse, pitchedLabelPlaneMatrix);
-
             const getElevation = frameRenderContext.terrain ? (x: number, y: number) => frameRenderContext.terrain.getElevation(coord, x, y) : undefined;
             const rotateToLine = layer.layout.get('text-rotation-alignment') === 'map';
             updateLineLabels(bucket, painter, projectedCamera, isText, pitchedLabelPlaneMatrix, pitchedLabelPlaneMatrixInverse, pitchWithMap, keepUpright, rotateToLine, coord.toUnwrapped(), translation, getElevation);

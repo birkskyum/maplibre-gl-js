@@ -219,4 +219,63 @@ describe('drawSymbol', () => {
 
         expect(programMock.draw).toHaveBeenCalledTimes(0);
     });
+
+    test('builds the label plane matrices once for consecutive tiles with the same scale', () => {
+        const painterMock = new Painter(null);
+        painterMock.context = {
+            gl: {},
+            activeTexture: {
+                set: () => { }
+            }
+        } as any;
+        const frameRenderContext = new FrameRenderContext({projectedCamera: createProjectedCamera(), worldCoordinateHelper: mercatorWorldCoordinateHelper, terrain: null, data: createFrameRenderData(), context: painterMock.context, programCache: null, currentPass: 'translucent', projection: null});
+
+        const layerSpec = {
+            id: 'mock-layer',
+            source: 'empty-source',
+            type: 'symbol',
+            layout: {},
+            paint: {
+                'text-opacity': 1
+            }
+        } as SymbolLayerSpecification;
+        const layer = new SymbolStyleLayer(layerSpec, {});
+        layer.recalculate({zoom: 0, zoomHistory: {} as ZoomHistory} as EvaluationParameters, []);
+
+        const programMock = new Program(null, null, null, null, null, null, null, null);
+        vi.spyOn(frameRenderContext, 'useProgram').mockReturnValue(programMock);
+        const bucketMock = new SymbolBucket(null);
+        bucketMock.icon = {
+            programConfigurations: {
+                get: () => { }
+            },
+            segments: {
+                get: () => [1]
+            },
+            hasVisibleVertices: true
+        } as any;
+        bucketMock.iconSizeData = {
+            kind: 'constant',
+            layoutSize: 1
+        };
+        const tiles = [new OverscaledTileID(1, 0, 1, 0, 0), new OverscaledTileID(1, 0, 1, 1, 0), new OverscaledTileID(2, 0, 2, 0, 0)].map((tileId) => {
+            const tile = new Tile(tileId, 512);
+            tile.tileID = tileId;
+            tile.tileSize = 512;
+            tile.imageAtlasTexture = {
+                bind: () => { }
+            } as any;
+            (vi.mocked(tile.getBucket)).mockReturnValue(bucketMock);
+            return tile;
+        });
+        const tileManagerMock = new TileManager(null, null, null);
+        (vi.mocked(tileManagerMock.getTile)).mockImplementation((tileId) => tiles.find((tile) => tile.tileID === tileId));
+        tileManagerMock.map = {showCollisionBoxes: false} as any as Map;
+        (vi.mocked(symbolProjection.getPitchedLabelPlaneMatrix)).mockClear();
+
+        drawSymbols(painterMock, tileManagerMock, layer, tiles.map((tile) => tile.tileID), frameRenderContext);
+
+        expect(programMock.draw).toHaveBeenCalledTimes(3);
+        expect(symbolProjection.getPitchedLabelPlaneMatrix).toHaveBeenCalledTimes(2);
+    });
 });
