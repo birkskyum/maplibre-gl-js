@@ -1,6 +1,6 @@
 import {Uniform1i, Uniform1f, Uniform2f, Uniform3f} from '../uniform_binding.ts';
 import {pixelsToTileUnits} from '../../source/pixels_to_tile_units.ts';
-import {extend, translatePosition} from '../../util/util.ts';
+import {translatePosition} from '../../util/util.ts';
 
 import type {Context} from '../../webgl/context.ts';
 import type {UniformValues, UniformLocations} from '../uniform_binding.ts';
@@ -123,10 +123,12 @@ const lineGradientUniformValues = (
     ratioScale: number,
     imageHeight: number,
 ): UniformValues<LineGradientUniformsType> => {
-    return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+    return {
+        'u_translation': calculateTranslation(projectedCamera, tile, layer),
+        'u_ratio': ratioScale / pixelsToTileUnits(tile, 1, projectedCamera.zoom),
         'u_image': 0,
         'u_image_height': imageHeight,
-    });
+    };
 };
 
 const linePatternUniformValues = (
@@ -158,7 +160,9 @@ const lineSDFUniformValues = (
 ): UniformValues<LineSDFUniformsType> => {
     const tileRatio = calculateTileRatio(tile, projectedCamera);
 
-    return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+    return {
+        'u_translation': calculateTranslation(projectedCamera, tile, layer),
+        'u_ratio': ratioScale / pixelsToTileUnits(tile, 1, projectedCamera.zoom),
         'u_tileratio': tileRatio,
         'u_crossfade_from': crossfade.fromScale,
         'u_crossfade_to': crossfade.toScale,
@@ -166,7 +170,7 @@ const lineSDFUniformValues = (
         'u_mix': crossfade.t,
         'u_lineatlas_width': lineAtlas.width,
         'u_lineatlas_height': lineAtlas.height,
-    });
+    };
 };
 
 const lineGradientSDFUniformValues = (
@@ -180,7 +184,9 @@ const lineGradientSDFUniformValues = (
 ): UniformValues<LineGradientSDFUniformsType> => {
     const tileRatio = calculateTileRatio(tile, projectedCamera);
 
-    return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+    return {
+        'u_translation': calculateTranslation(projectedCamera, tile, layer),
+        'u_ratio': ratioScale / pixelsToTileUnits(tile, 1, projectedCamera.zoom),
         'u_image': 0,
         'u_image_height': imageHeight,
         'u_tileratio': tileRatio,
@@ -190,7 +196,7 @@ const lineGradientSDFUniformValues = (
         'u_mix': crossfade.t,
         'u_lineatlas_width': lineAtlas.width,
         'u_lineatlas_height': lineAtlas.height,
-    });
+    };
 };
 
 function calculateTileRatio(tile: Tile, projectedCamera: ProjectedCamera) {

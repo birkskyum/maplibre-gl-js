@@ -24,6 +24,9 @@ import type {Tile} from '../../tile/tile.ts';
 import type {Context} from '../context.ts';
 import type {ProgramConfiguration} from '../../data/program_configuration.ts';
 import type {RGBAImage} from '../../util/image.ts';
+import type {DashEntry} from '../../render/line_atlas.ts';
+import type {CrossFaded} from '../../style/properties.ts';
+import type {ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
 
 type GradientTexture = {
     texture?: Texture;
@@ -178,6 +181,11 @@ function drawLineTiles(
 
     const gradient = layer.paint.get('line-gradient');
     const crossfade = layer.getCrossfadeParameters();
+    let constantPattern: CrossFaded<ResolvedImage>;
+    let constantDasharray: CrossFaded<number[]>;
+    let pixelRatio: number;
+    let dashTo: DashEntry;
+    let dashFrom: DashEntry;
 
     let programId: string;
     if (image) programId = 'linePattern';
@@ -206,8 +214,11 @@ function drawLineTiles(
         const programChanged = firstTile || program.program !== prevProgram;
         const terrainData = frameRenderContext.getTerrainDataForTile(coord);
 
-        const constantPattern = patternProperty.constantOr(null);
-        const constantDasharray = dasharrayProperty?.constantOr(null);
+        if (firstTile) {
+            constantPattern = patternProperty.constantOr(null);
+            constantDasharray = dasharrayProperty?.constantOr(null);
+            pixelRatio = getCameraMath(projectedCamera).getPixelScale(projectedCamera);
+        }
 
         if (constantPattern && tile.imageAtlas) {
             const atlas = tile.imageAtlas;
@@ -215,15 +226,15 @@ function drawLineTiles(
             const posFrom = atlas.patternPositions[constantPattern.from.toString()];
             if (posTo && posFrom) programConfiguration.setConstantPatternPositions(posTo, posFrom);
         } else if (constantDasharray) {
-            const round = layer.layout.get('line-cap').constantOr(null) === 'round';
-            const dashTo = painter.lineAtlas.getDash(constantDasharray.to, round);
-            const dashFrom = painter.lineAtlas.getDash(constantDasharray.from, round);
+            if (dashTo === undefined) {
+                const round = layer.layout.get('line-cap').constantOr(null) === 'round';
+                dashTo = painter.lineAtlas.getDash(constantDasharray.to, round);
+                dashFrom = painter.lineAtlas.getDash(constantDasharray.from, round);
+            }
             programConfiguration.setConstantDashPositions(dashTo, dashFrom);
         }
 
         const projectionData = frameRenderContext.getProjectionDataForTile(coord);
-
-        const pixelRatio = getCameraMath(projectedCamera).getPixelScale(projectedCamera);
 
         let uniformValues;
         if (image) {
