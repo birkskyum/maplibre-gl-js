@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Data-driven fill-extrusion-opacity</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #map { flex: 1; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <button id="reset">Reset</button>
+    Click a building to make it see-through, click again to restore.
+</div>
+<div id="map"></div>
+<script type="module">
+    import * as maplibregl from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@aa98e0bfc6d75561c7af116ac9f409e4322ad71a/maplibre-gl.mjs';
+
+    const camera = {center: [-74.0113, 40.7069], zoom: 16.3, pitch: 62, bearing: 25};
+    const seeThrough = ['boolean', ['feature-state', 'seeThrough'], false];
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        ...camera
+    });
+
+    await map.once('load');
+    const buildings = map.getStyle().layers.find((layer) => layer.type === 'fill-extrusion');
+    map.setPaintProperty(buildings.id, 'fill-extrusion-layer-opacity', buildings.paint['fill-extrusion-opacity']);
+    map.setPaintProperty(buildings.id, 'fill-extrusion-opacity', ['case', seeThrough, 0.35, 1]);
+    map.setPaintProperty(buildings.id, 'fill-extrusion-color', ['case', seeThrough, '#2a7de1', buildings.paint['fill-extrusion-color']]);
+
+    map.on('click', buildings.id, (e) => {
+        const feature = e.features[0];
+        const target = {source: feature.source, sourceLayer: feature.sourceLayer, id: feature.id};
+        map.setFeatureState(target, {seeThrough: !map.getFeatureState(target).seeThrough});
+    });
+
+    document.getElementById('reset').onclick = () => {
+        map.removeFeatureState({source: buildings.source, sourceLayer: buildings['source-layer']});
+        map.jumpTo(camera);
+    };
+</script>
+</body>
+</html>
