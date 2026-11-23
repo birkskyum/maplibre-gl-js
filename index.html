@@ -14,14 +14,8 @@
 </head>
 <body>
 <div id="bar">
-    <select id="scenario">
-        <option value="zurich16">Zurich, zoom 16</option>
-        <option value="zurich20">Zurich, zoom 20</option>
-        <option value="tromso">Tromsø, zoom 19</option>
-        <option value="singapore">Singapore, zoom 19</option>
-    </select>
     <button id="reset">Reset both</button>
-    Left: 6.19.0. Right: this PR. Both in vertical-perspective, pan slowly.
+    Left: 6.19.0. Right: this PR. Both in vertical-perspective, zoom in and pan slowly.
 </div>
 <div id="maps">
     <div id="before"></div>
@@ -31,44 +25,31 @@
     import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.mjs';
     import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@4f663ad0dd1649871b7cf040b17bf71f8c574036/maplibre-gl.mjs';
 
-    const scenarios = {
-        zurich16: {center: [8.5417, 47.3769], zoom: 16, pitch: 0, bearing: 0},
-        zurich20: {center: [8.5417, 47.3769], zoom: 20, pitch: 0, bearing: 0},
-        tromso: {center: [18.9553, 69.6492], zoom: 19, pitch: 0, bearing: 0},
-        singapore: {center: [103.8519, 1.2903], zoom: 19, pitch: 0, bearing: 0}
-    };
+    const start = {center: [8.5417, 47.3769], zoom: 16, pitch: 0, bearing: 0};
 
-    const select = document.getElementById('scenario');
-    let maps = [];
-
-    function load() {
-        for (const map of maps) map.remove();
-        maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => {
-            const map = new maplibregl.Map({
-                container,
-                style: 'https://tiles.openfreemap.org/styles/liberty',
-                ...scenarios[select.value]
-            });
-            map.on('style.load', () => map.setProjection({type: 'vertical-perspective'}));
-            return map;
+    const maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => {
+        const map = new maplibregl.Map({
+            container,
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            ...start
         });
-        let syncing = false;
-        for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
-            from.on('move', () => {
-                if (syncing) return;
-                syncing = true;
-                to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
-                syncing = false;
-            });
-        }
-        window.maps = maps;
-    }
-
-    select.addEventListener('change', load);
-    document.getElementById('reset').addEventListener('click', () => {
-        for (const map of maps) map.jumpTo(scenarios[select.value]);
+        map.on('style.load', () => map.setProjection({type: 'vertical-perspective'}));
+        return map;
     });
-    load();
+    let syncing = false;
+    for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
+        from.on('move', () => {
+            if (syncing) return;
+            syncing = true;
+            to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
+            syncing = false;
+        });
+    }
+    window.maps = maps;
+
+    document.getElementById('reset').addEventListener('click', () => {
+        for (const map of maps) map.jumpTo(start);
+    });
 </script>
 </body>
 </html>
