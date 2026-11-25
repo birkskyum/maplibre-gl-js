@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Terrain fog with layers above a symbol layer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="6">Six GeoJSON layers added on top</option>
+        <option value="1">One GeoJSON fill added on top</option>
+        <option value="0">The style as is</option>
+    </select>
+    <button id="reset">Reset both</button>
+    Left: 6.19.0. Right: this PR. Look at the mountains near the horizon.
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.mjs';
+    import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@0001712653473fc1d11188a6e829998b8e21a4f4/maplibre-gl.mjs';
+
+    const center = [7.6586, 45.9763];
+    const start = {center, zoom: 12, pitch: 75, bearing: 0};
+    const select = document.getElementById('scenario');
+
+    function square(i) {
+        const lng = center[0] + (i - 2.5) * 0.006;
+        const lat = center[1] - 0.012;
+        const d = 0.0015;
+        return {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: [[[lng - d, lat - d], [lng + d, lat - d], [lng + d, lat + d], [lng - d, lat + d], [lng - d, lat - d]]]}};
+    }
+
+    function setOverlays(map) {
+        if (!map.getSource('terrain')) return;
+        for (let i = 0; i < 6; i++) {
+            if (map.getLayer(`overlay-${i}-label`)) map.removeLayer(`overlay-${i}-label`);
+            if (map.getLayer(`overlay-${i}`)) map.removeLayer(`overlay-${i}`);
+            if (map.getSource(`overlay-${i}`)) map.removeSource(`overlay-${i}`);
+        }
+        for (let i = 0; i < Number(select.value); i++) {
+            map.addSource(`overlay-${i}`, {type: 'geojson', data: square(i)});
+            map.addLayer({id: `overlay-${i}`, type: 'fill', source: `overlay-${i}`, paint: {'fill-color': '#e33', 'fill-opacity': 0.5}});
+            map.addLayer({id: `overlay-${i}-label`, type: 'symbol', source: `overlay-${i}`, layout: {'text-field': 'Area', 'text-font': ['Noto Sans Regular']}, paint: {'text-color': '#fff'}});
+        }
+    }
+
+    const maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => {
+        const map = new maplibregl.Map({
+            container,
+            style: 'https://tiles.openfreemap.org/styles/dark',
+            maxPitch: 85,
+            ...start
+        });
+        map.on('load', () => {
+            map.addSource('terrain', {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'});
+            map.setTerrain({source: 'terrain'});
+            map.setSky({'sky-color': '#199EF3', 'horizon-color': '#ffffff', 'fog-color': '#ffffff', 'sky-horizon-blend': 0.5, 'horizon-fog-blend': 0.5, 'fog-ground-blend': 0.5});
+            setOverlays(map);
+        });
+        return map;
+    });
+    let syncing = false;
+    for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
+        from.on('move', () => {
+            if (syncing) return;
+            syncing = true;
+            to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
+            syncing = false;
+        });
+    }
+    window.maps = maps;
+
+    select.addEventListener('change', () => {
+        for (const map of maps) setOverlays(map);
+    });
+    document.getElementById('reset').addEventListener('click', () => maps[0].jumpTo(start));
+</script>
+</body>
+</html>
