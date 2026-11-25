@@ -10,14 +10,14 @@
         #bar { padding: 4px; }
         #maps { flex: 1; display: flex; gap: 2px; }
         #maps > div { flex: 1; }
+        .caption { position: absolute; z-index: 1; top: 8px; left: 8px; padding: 3px 7px; border-radius: 3px; background: #fff; font-weight: 600; }
     </style>
 </head>
 <body>
 <div id="bar">
     <select id="scenario">
         <option value="6">Six GeoJSON layers added on top</option>
-        <option value="1">One GeoJSON fill added on top</option>
-        <option value="0">The style as is</option>
+        <option value="0">Satellite, labels and hillshade only</option>
     </select>
     <button id="reset">Reset both</button>
     Left: 6.19.0. Right: this PR. Look at the mountains near the horizon.
@@ -55,19 +55,46 @@
         }
     }
 
-    const maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => {
+    function hybridSatellite(previousStyle, nextStyle) {
+        nextStyle.sources = {
+            ...nextStyle.sources,
+            satellite: {
+                type: 'raster',
+                tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg'],
+                tileSize: 256,
+                attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless 2020</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2020)'
+            },
+            terrain: {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'},
+            hillshade: {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'}
+        };
+        nextStyle.terrain = {source: 'terrain', exaggeration: 1};
+        nextStyle.sky = {};
+        nextStyle.layers.push({id: 'hills', type: 'hillshade', source: 'hillshade', paint: {'hillshade-shadow-color': '#473B24'}});
+        const firstRoadLayer = nextStyle.layers.find(layer => layer['source-layer'] === 'transportation');
+        nextStyle.layers.splice(nextStyle.layers.indexOf(firstRoadLayer), 0, {id: 'satellite', type: 'raster', source: 'satellite'});
+        return nextStyle;
+    }
+
+    function caption(map, fogPasses) {
+        const element = document.createElement('div');
+        element.className = 'caption';
+        map.getContainer().append(element);
+        map.on('idle', () => {
+            const groups = map.painter.renderToTexture?._stacks.length ?? 0;
+            const passes = fogPasses(groups);
+            element.textContent = `${groups} layer group${groups === 1 ? '' : 's'}, fog drawn ${passes === 1 ? 'once' : `${passes} times`}`;
+        });
+    }
+
+    const maps = [[before, 'before', groups => groups], [after, 'after', () => 1]].map(([maplibregl, container, fogPasses]) => {
         const map = new maplibregl.Map({
             container,
-            style: 'https://tiles.openfreemap.org/styles/dark',
             maxPitch: 85,
             ...start
         });
-        map.on('load', () => {
-            map.addSource('terrain', {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'});
-            map.setTerrain({source: 'terrain'});
-            map.setSky({'sky-color': '#199EF3', 'horizon-color': '#ffffff', 'fog-color': '#ffffff', 'sky-horizon-blend': 0.5, 'horizon-fog-blend': 0.5, 'fog-ground-blend': 0.5});
-            setOverlays(map);
-        });
+        map.setStyle('https://tiles.openfreemap.org/styles/bright', {transformStyle: hybridSatellite});
+        map.on('load', () => setOverlays(map));
+        caption(map, fogPasses);
         return map;
     });
     let syncing = false;
