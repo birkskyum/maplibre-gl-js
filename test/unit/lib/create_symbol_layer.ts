@@ -1,4 +1,5 @@
 import {SymbolBucket} from '../../../src/data/bucket/symbol_bucket.ts';
+import {SymbolBucketBuilder} from '../../../src/data/bucket/symbol_bucket_builder.ts';
 import {SymbolStyleLayer} from '../../../src/style/style_layer/symbol_style_layer.ts';
 import {Tile} from '../../../src/tile/tile.ts';
 import {FeatureIndex} from '../../../src/data/feature_index.ts';
@@ -44,7 +45,7 @@ export function createSymbolBucket(layerId: string, font: string, text: string, 
 /** A tile whose `test` bucket holds `features` laid out with the `Test` fontstack, ready for cross tile indexing and placement. */
 export function createSymbolTile(tileID: OverscaledTileID, features: IndexedFeature[], collisionBoxArray: CollisionBoxArray, extraLayout?: SymbolLayerSpecification['layout']): Tile {
     const bucket = createSymbolBucket('test', 'Test', 'abcde', collisionBoxArray, extraLayout);
-    bucket.populate(features, createPopulateOptions([]), undefined);
+    new SymbolBucketBuilder(bucket).populate(features, createPopulateOptions([]), undefined);
     const glyphMap = createGlyphMap();
     performSymbolLayout({
         bucket,

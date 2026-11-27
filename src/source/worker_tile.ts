@@ -7,8 +7,9 @@ import {GlyphAtlas} from '../render/glyph_atlas.ts';
 import {EvaluationParameters} from '../style/evaluation_parameters.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {type GetDashesResponse, MessageType, type GetImagesResponse} from '../util/actor_messages.ts';
+import {createBucketBuilder} from '../data/bucket/create_bucket_builder.ts';
 
-import type {Bucket, PopulateParameters} from '../data/bucket.ts';
+import type {BucketBuilder, PopulateParameters} from '../data/bucket.ts';
 import type {IActor} from '../util/actor.ts';
 import type {StyleLayer} from '../style/style_layer.ts';
 import type {StyleLayerIndex} from '../style/style_layer_index.ts';
@@ -69,7 +70,7 @@ export class WorkerTile {
         const featureIndex = new FeatureIndex(this.tileID, this.promoteId);
         featureIndex.bucketLayerIDs = [];
 
-        const buckets: {[_: string]: Bucket} = {};
+        const builders: Record<string, BucketBuilder> = {};
 
         const options: PopulateParameters = {
             featureIndex,
@@ -110,7 +111,7 @@ export class WorkerTile {
                 if (layer.isHidden(this.zoom, true)) continue;
                 recalculateLayers(family, this.zoom, availableImages);
 
-                const bucket = buckets[layer.id] = layer.createBucket({
+                const builder = builders[layer.id] = createBucketBuilder(layer, {
                     index: featureIndex.bucketLayerIDs.length,
                     layers: family,
                     zoom: this.zoom,
@@ -121,7 +122,7 @@ export class WorkerTile {
                     sourceID: this.source
                 });
 
-                bucket.populate(features, options, this.tileID.canonical);
+                builder.populate(features, options, this.tileID.canonical);
                 featureIndex.bucketLayerIDs.push(family.map((l) => l.id));
             }
         }
@@ -170,12 +171,12 @@ export class WorkerTile {
         const glyphAtlas = new GlyphAtlas(glyphMap);
         const imageAtlas = new ImageAtlas(iconMap, patternMap);
 
-        for (const key in buckets) {
-            const bucket = buckets[key];
-            if (!bucket.hasDependencies) continue;
+        for (const key in builders) {
+            const builder = builders[key];
+            if (!builder.hasDependencies) continue;
 
-            recalculateLayers(bucket.layers, this.zoom, availableImages);
-            bucket.addFeatures({
+            recalculateLayers(builder.bucket.layers, this.zoom, availableImages);
+            builder.addFeatures({
                 options,
                 canonical: this.tileID.canonical,
                 glyphMap,
@@ -190,7 +191,7 @@ export class WorkerTile {
         }
 
         return {
-            buckets: Object.values(buckets).filter(b => !b.isEmpty()),
+            buckets: Object.values(builders).map(builder => builder.bucket).filter(b => !b.isEmpty()),
             featureIndex,
             collisionBoxArray: this.collisionBoxArray,
             glyphAtlasImage: glyphAtlas.image,

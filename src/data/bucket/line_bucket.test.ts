@@ -2,6 +2,7 @@ import {beforeAll, describe, test, expect, vi} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {SegmentVector} from '../segment.ts';
 import {LineBucket} from './line_bucket.ts';
+import {LineBucketBuilder} from './line_bucket_builder.ts';
 import {LineStyleLayer} from '../../style/style_layer/line_style_layer.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {type CreateBucketParameters, createPopulateOptions, getFeaturesFromLayer, loadVectorTile} from '../../../test/unit/lib/tile.ts';
@@ -62,6 +63,7 @@ describe('LineBucket', () => {
             const bucket = createLineBucket({
                 id: 'test'
             });
+            const builder = new LineBucketBuilder(bucket);
 
             const line = {
                 type: 2,
@@ -73,56 +75,56 @@ describe('LineBucket', () => {
                 properties: {}
             } as BucketFeature;
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0)
             ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0)
             ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(0, 0)
             ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(0, 0)
             ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(0, 0)
             ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(0, 0)
             ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
-                new Point(0, 0),
-                new Point(10, 10),
-                new Point(10, 20)
-            ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
-
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(10, 20)
+            ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
+
+            builder.addLine([
+                new Point(0, 0),
+                new Point(10, 10),
+                new Point(10, 20)
             ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(10, 20),
                 new Point(0, 0)
             ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-            bucket.addLine([
+            builder.addLine([
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(10, 20),
@@ -130,7 +132,7 @@ describe('LineBucket', () => {
             ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
             const feature = sourceLayer.feature(0);
-            bucket.addFeature(feature as any, feature.loadGeometry(), undefined, undefined, undefined, undefined, noSubdivision);
+            builder.addFeature(feature as any, feature.loadGeometry(), undefined, undefined, undefined, undefined, noSubdivision);
         }).not.toThrow();
     });
 
@@ -144,13 +146,14 @@ describe('LineBucket', () => {
         const bucket = createLineBucket({
             id: 'test'
         });
+        const builder = new LineBucketBuilder(bucket);
 
         // first add an initial, small feature to make sure the next one starts at
         // a non-zero offset
-        bucket.addFeature({} as BucketFeature, [createLine(10)], undefined, undefined, undefined, undefined, noSubdivision);
+        builder.addFeature({} as BucketFeature, [createLine(10)], undefined, undefined, undefined, undefined, noSubdivision);
 
         // add a feature that will break across the group boundary
-        bucket.addFeature({} as BucketFeature, [createLine(128)], undefined, undefined, undefined, undefined, noSubdivision);
+        builder.addFeature({} as BucketFeature, [createLine(128)], undefined, undefined, undefined, undefined, noSubdivision);
 
         // Each polygon must fit entirely within a segment, so we expect the
         // first segment to include the first feature and the first polygon
@@ -182,11 +185,12 @@ describe('LineBucket', () => {
             globalState: {pattern: 'test-pattern'},
             availableImages
         });
+        const builder = new LineBucketBuilder(bucket);
 
-        bucket.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
+        builder.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
 
-        expect(bucket.patternFeatures.length).toBeGreaterThan(0);
-        expect(bucket.patternFeatures[0].patterns).toEqual({
+        expect(builder.patternFeatures.length).toBeGreaterThan(0);
+        expect(builder.patternFeatures[0].patterns).toEqual({
             test: {min: 'test-pattern', mid: 'test-pattern', max: 'test-pattern'}
         });
     });
@@ -197,11 +201,12 @@ describe('LineBucket', () => {
             globalState: {'dasharray': [3, 3]},
             availableImages: []
         });
+        const builder = new LineBucketBuilder(bucket);
 
-        bucket.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions([]), undefined);
+        builder.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions([]), undefined);
 
-        expect(bucket.patternFeatures.length).toBeGreaterThan(0);
-        expect(bucket.patternFeatures[0].dashes).toEqual({
+        expect(builder.patternFeatures.length).toBeGreaterThan(0);
+        expect(builder.patternFeatures[0].dashes).toEqual({
             test: {min: '3,3,false', mid: '3,3,false', max: '3,3,false'}
         });
     });
@@ -210,11 +215,12 @@ describe('LineBucket', () => {
         const layer = new LineStyleLayer({id: 'test', type: 'line'} as LayerSpecification, {});
         layer.recalculate({zoom: 0, zoomHistory: {} as ZoomHistory} as EvaluationParameters, []);
         const bucket = new LineBucket({layers: [layer], overscaling: 1} as BucketParameters<LineStyleLayer>);
+        const builder = new LineBucketBuilder(bucket);
         const line = {type: 2, properties: {}} as BucketFeature;
 
         // A right angle adds a vertex 240 tile units before and after the corner; an offset of 512 moves
         // the corner on the inside of the turn past both of them.
-        bucket.addLine([
+        builder.addLine([
             new Point(0, 0),
             new Point(1000, 0),
             new Point(1000, 1000)
@@ -234,8 +240,9 @@ describe('LineBucket', () => {
         const layer = new LineStyleLayer({id: 'test', type: 'line', source: 'test', paint: {'line-dasharray': [2, 2], 'line-offset': 4}}, {});
         layer.recalculate({zoom: 0, zoomHistory: {} as ZoomHistory} as EvaluationParameters, []);
         const bucket = new LineBucket({layers: [layer], overscaling: 1} as BucketParameters<LineStyleLayer>);
+        const builder = new LineBucketBuilder(bucket);
 
-        bucket.addFeature({type: 2, properties: {}} as BucketFeature, [[
+        builder.addFeature({type: 2, properties: {}} as BucketFeature, [[
             new Point(0, 0),
             new Point(1000, 0),
             new Point(1000, 1000)
@@ -258,6 +265,7 @@ describe('LineBucket', () => {
 
     test('LineBucket ignores geometry with insufficient unique vertices after trimming duplicates', () => {
         const bucket = createLineBucket({id: 'test'});
+        const builder = new LineBucketBuilder(bucket);
 
         const line = {
             type: 2,
@@ -269,20 +277,20 @@ describe('LineBucket', () => {
             properties: {}
         } as BucketFeature;
 
-        bucket.addLine([
+        builder.addLine([
             new Point(0, 0),
             new Point(0, 0),
             new Point(0, 0)
         ], line, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-        bucket.addLine([
+        builder.addLine([
             new Point(0, 0),
             new Point(0, 0),
             new Point(10, 10),
             new Point(10, 10)
         ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
-        bucket.addLine([
+        builder.addLine([
             new Point(0, 0),
             new Point(0, 0),
             new Point(0, 0),

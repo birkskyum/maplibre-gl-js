@@ -1,4 +1,4 @@
-// Should match actual possible granularity settings from circle_bucket.ts
+// Should match actual possible granularity settings from circle_bucket_builder.ts
 
 /**
  * Defines the granularity of subdivision for circles with `circle-pitch-alignment: 'map'` and for heatmap kernels.

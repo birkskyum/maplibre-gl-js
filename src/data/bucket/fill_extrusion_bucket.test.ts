@@ -1,5 +1,6 @@
 import {beforeAll, describe, test, expect} from 'vitest';
 import {FillExtrusionBucket} from './fill_extrusion_bucket.ts';
+import {FillExtrusionBucketBuilder} from './fill_extrusion_bucket_builder.ts';
 import {FillExtrusionStyleLayer} from '../../style/style_layer/fill_extrusion_style_layer.ts';
 import {type CreateBucketParameters, createPopulateOptions, getFeaturesFromLayer, loadVectorTile} from '../../../test/unit/lib/tile.ts';
 
@@ -36,11 +37,12 @@ describe('FillExtrusionBucket', () => {
             globalState: {pattern: 'test-pattern'},
             availableImages
         });
+        const builder = new FillExtrusionBucketBuilder(bucket);
 
-        bucket.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
+        builder.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
 
-        expect(bucket.features.length).toBeGreaterThan(0);
-        expect(bucket.features[0].patterns).toEqual({
+        expect(builder.features.length).toBeGreaterThan(0);
+        expect(builder.features[0].patterns).toEqual({
             test: {min: 'test-pattern', mid: 'test-pattern', max: 'test-pattern'}
         });
     });
@@ -51,17 +53,19 @@ describe('FillExtrusionBucket', () => {
             layout: {'fill-extrusion-rounded-corner-distance': 0},
             paint: {'fill-extrusion-height': 10}
         });
+        const builderWithoutRounding = new FillExtrusionBucketBuilder(bucketWithoutRounding);
         const bucketWithRounding = createFillExtrusionBucket({
             id: 'test-rounding',
             layout: {'fill-extrusion-rounded-corner-distance': 5},
             paint: {'fill-extrusion-height': 10}
         });
+        const builderWithRounding = new FillExtrusionBucketBuilder(bucketWithRounding);
 
         const features = getFeaturesFromLayer(sourceLayer);
         const populateOptions = createPopulateOptions([]);
 
-        bucketWithoutRounding.populate(features, populateOptions, {x: 0, y: 0, z: 14} as any);
-        bucketWithRounding.populate(features, populateOptions, {x: 0, y: 0, z: 14} as any);
+        builderWithoutRounding.populate(features, populateOptions, {x: 0, y: 0, z: 14} as any);
+        builderWithRounding.populate(features, populateOptions, {x: 0, y: 0, z: 14} as any);
 
         expect(bucketWithoutRounding.layoutVertexArray.length).toBeGreaterThan(0);
         expect(bucketWithRounding.layoutVertexArray.length).toBeGreaterThan(bucketWithoutRounding.layoutVertexArray.length);

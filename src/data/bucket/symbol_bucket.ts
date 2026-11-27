@@ -19,33 +19,15 @@ import Point from '@mapbox/point-geometry';
 import {SegmentVector} from '../segment.ts';
 import {ProgramConfigurationSet} from '../program_configuration.ts';
 import {TriangleIndexArray, LineIndexArray} from '../array_types.g.ts';
-import {transformText} from '../../symbol/transform_text.ts';
-import {mergeLines} from '../../symbol/merge_lines.ts';
-import {isCluster} from '../../util/graphemes.ts';
-import {TaggedString} from '../../symbol/tagged_string.ts';
-import {allowsLetterSpacing, allowsVerticalWritingMode, stringContainsRTLText} from '../../util/script_detection.ts';
-import {mayUseVerticalGlyph, WritingMode} from '../../symbol/shaping.ts';
-import {loadGeometry} from '../load_geometry.ts';
-import {toEvaluationFeature} from '../evaluation_feature.ts';
-import {VectorTileFeature} from '@mapbox/vector-tile';
-import {verticalizedCharacterMap} from '../../util/verticalize_punctuation.ts';
+import {WritingMode} from '../../symbol/writing_mode.ts';
 import {getSizeData, MAX_PACKED_SIZE, MAX_GLYPHS} from '../../symbol/symbol_size.ts';
-import {performSymbolLayout} from '../../symbol/symbol_layout.ts';
-import {isOutsideTile} from '../extent_bounds.ts';
 import {register} from '../../util/web_worker_transfer.ts';
-import {EvaluationParameters} from '../../style/evaluation_parameters.ts';
-import {Formatted, ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
 import {getOverlapMode} from '../../style/style_layer/overlap_mode.ts';
 
 import type {Anchor} from '../../symbol/anchor.ts';
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
-import type {
-    Bucket,
-    BucketParameters,
-    BucketDependencyParameters,
-    IndexedFeature,
-    PopulateParameters
-} from '../bucket.ts';
+import type {Bucket, BucketParameters} from '../bucket.ts';
+import type {Formatted, ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
 import type {CollisionBoxArray, CollisionBox, SymbolInstance} from '../array_types.g.ts';
 import type {StructArray, StructArrayMember, ViewType} from '../../util/struct_array.ts';
 import type {SymbolStyleLayer} from '../../style/style_layer/symbol_style_layer.ts';
@@ -151,19 +133,6 @@ function addDynamicAttributes(dynamicLayoutVertexArray: StructArray, p: Point, a
     dynamicLayoutVertexArray.emplaceBack(p.x, p.y, angle);
     dynamicLayoutVertexArray.emplaceBack(p.x, p.y, angle);
     dynamicLayoutVertexArray.emplaceBack(p.x, p.y, angle);
-}
-
-function containsRTLText(formattedText: Formatted): boolean {
-    for (const section of formattedText.sections) {
-        if (stringContainsRTLText(section.text)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function containsCursiveText(formattedText: Formatted): boolean {
-    return formattedText.sections.some(section => !allowsLetterSpacing(section.text));
 }
 
 export class SymbolBuffers {
@@ -284,12 +253,12 @@ register('CollisionBuffers', CollisionBuffers);
 
 /**
  * @internal
- * Unlike other buckets, which simply implement `addFeature` with type-specific
+ * Unlike other buckets, whose builders simply implement `addFeature` with type-specific
  * logic for (essentially) triangulating feature geometries, SymbolBucket
  * requires specialized behavior:
  *
  * 1. WorkerTile.parse(), the logical owner of the bucket creation process,
- *    calls SymbolBucket.populate(), which resolves text and icon tokens on
+ *    calls SymbolBucketBuilder.populate(), which resolves text and icon tokens on
  *    each feature, adds each glyphs and symbols needed to the passed-in
  *    collections options.glyphDependencies and options.iconDependencies, and
  *    stores the feature data for use in subsequent step (this.features).
@@ -297,7 +266,7 @@ register('CollisionBuffers', CollisionBuffers);
  * 2. WorkerTile asynchronously requests from the main thread all of the glyphs
  *    and icons needed (by this bucket and any others).
  *
- * 3. WorkerTile calls SymbolBucket.addFeatures(), which delegates text shaping
+ * 3. WorkerTile calls SymbolBucketBuilder.addFeatures(), which delegates text shaping
  *    and layout to performSymbolLayout(). This step populates:
  *      `this.symbolInstances`: metadata on generated symbols
  *      `this.collisionBoxArray`: collision data for use by foreground
@@ -327,7 +296,6 @@ export class SymbolBucket implements Bucket {
     iconsNeedLinear: boolean;
     bucketInstanceId: number;
     justReloaded: boolean;
-    hasDependencies: boolean;
 
     textSizeData: SizeData;
     iconSizeData: SizeData;
@@ -380,7 +348,6 @@ export class SymbolBucket implements Bucket {
         this.index = options.index;
         this.pixelRatio = options.pixelRatio;
         this.sourceLayerIndex = options.sourceLayerIndex;
-        this.hasDependencies = true;
         this.hasRTLText = false;
         this.hasCursiveText = false;
         this.maxHeightOffset = 0;
@@ -426,176 +393,6 @@ export class SymbolBucket implements Bucket {
         this.textAnchorOffsets = new TextAnchorOffsetArray();
     }
 
-    /**
-     * Collects a label's default and vertical glyph dependencies into `stacks` for the tile to request.
-     *
-     * A cluster of several codepoints is asked for as a whole, so that it can be drawn as the one
-     * shape it is written as. Its codepoints are asked for as well, to give layout something to draw
-     * a codepoint at a time where the cluster itself yields no glyph. See `shapeLines`.
-     *
-     * A cluster can span two sections, a letter in one and the accent written on it in the next, so
-     * the label is taken as a whole and each cluster attributed to the section its first character
-     * came from -- the same way layout attributes it. Collecting each section's text on its own
-     * would ask for glyphs no cluster is ever looked up by.
-     *
-     * @param text - label text and section formatting
-     * @param stacks - destination for dependencies grouped by font stack and variant
-     * @param fontStack - default font stack for sections without a font override
-     * @param needsVerticalForms - whether to request vertical alternates and compatibility punctuation
-     */
-    private calculateGlyphDependencies(
-        text: Formatted,
-        stacks: PopulateParameters['glyphDependencies'],
-        fontStack: string,
-        needsVerticalForms: boolean): void {
-
-        const tagged = TaggedString.fromFeature(text, fontStack, false);
-        const graphemes = tagged.graphemes();
-
-        for (let i = 0; i < graphemes.length; i++) {
-            const section = tagged.getSection(i);
-            if ('imageName' in section) continue;
-
-            stacks[section.fontStack] ||= {default: {}, vertical: {}};
-            const stack = stacks[section.fontStack];
-            const grapheme = graphemes[i];
-            const needsVerticalGlyph = needsVerticalForms && mayUseVerticalGlyph(grapheme.codePointAt(0), this.allowVerticalPlacement);
-            if (isCluster(grapheme)) stack.default[grapheme] = true;
-            if (needsVerticalGlyph) stack.vertical[grapheme] = true;
-
-            for (const char of grapheme) {
-                stack.default[char] = true;
-                if (!needsVerticalForms) continue;
-
-                if (needsVerticalGlyph && isCluster(grapheme)) stack.vertical[char] = true;
-                const verticalChar = verticalizedCharacterMap[char];
-                if (verticalChar) stack.default[verticalChar] = true;
-            }
-        }
-    }
-
-    populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void {
-        const layer = this.layers[0];
-        const layout = layer.layout;
-
-        const textFont = layout.get('text-font');
-        const textField = layout.get('text-field');
-        const iconImage = layout.get('icon-image');
-        const hasText =
-            (textField.value.kind !== 'constant' ||
-                (textField.value.value instanceof Formatted && !textField.value.value.isEmpty()) ||
-                textField.value.value.toString().length > 0) &&
-            (textFont.value.kind !== 'constant' || textFont.value.value.length > 0);
-        // we should always resolve the icon-image value if the property was defined in the style
-        // this allows us to fire the styleimagemissing event if image evaluation returns null
-        // the only way to distinguish between null returned from a coalesce statement with no valid images
-        // and null returned because icon-image wasn't defined is to check whether or not iconImage.parameters is an empty object
-        const hasIcon = iconImage.value.kind !== 'constant' || !!iconImage.value.value || Object.keys(iconImage.parameters).length > 0;
-        const symbolSortKey = layout.get('symbol-sort-key');
-        const pointPlacement = layout.get('symbol-placement') === 'point';
-
-        this.features = [];
-
-        if (!hasText && !hasIcon) {
-            return;
-        }
-
-        const icons = options.iconDependencies;
-        const stacks = options.glyphDependencies;
-        const availableImages = options.availableImages;
-        const globalProperties = new EvaluationParameters(this.zoom);
-        const keepUpright = layout.get('text-keep-upright');
-
-        for (const {feature, id, index, sourceLayerIndex} of features) {
-
-            const needGeometry = layer._featureFilter.needGeometry;
-            const evaluationFeature = toEvaluationFeature(feature, needGeometry);
-            if (!layer._featureFilter.filter(globalProperties, evaluationFeature, canonical)) {
-                continue;
-            }
-
-            if (!needGeometry)  evaluationFeature.geometry = loadGeometry(feature);
-
-            if (pointPlacement && feature.type === 1 && isEveryPointOutsideTile(evaluationFeature.geometry)) continue;
-
-            let text: Formatted | void;
-            if (hasText) {
-                // Expression evaluation will automatically coerce to Formatted
-                // but plain string token evaluation skips that pathway so do the
-                // conversion here.
-                const resolvedTokens = layer.getValueAndResolveTokens('text-field', evaluationFeature, canonical, availableImages);
-                const formattedText = Formatted.factory(resolvedTokens);
-
-                this.hasRTLText ||= containsRTLText(formattedText);
-                this.hasCursiveText ||= containsCursiveText(formattedText);
-                text = transformText(formattedText, layer, evaluationFeature);
-            }
-
-            let icon: ResolvedImage;
-            if (hasIcon) {
-                // Expression evaluation will automatically coerce to Image
-                // but plain string token evaluation skips that pathway so do the
-                // conversion here.
-                const resolvedTokens = layer.getValueAndResolveTokens('icon-image', evaluationFeature, canonical, availableImages);
-                if (resolvedTokens instanceof ResolvedImage) {
-                    icon = resolvedTokens;
-                } else {
-                    icon = ResolvedImage.fromString(resolvedTokens);
-                }
-            }
-
-            if (!text && !icon) {
-                continue;
-            }
-            const sortKey = this.sortFeaturesByKey ?
-                symbolSortKey.evaluate(evaluationFeature, {}, canonical) :
-                undefined;
-
-            const symbolFeature: SymbolFeature = {
-                id,
-                text,
-                icon,
-                index,
-                sourceLayerIndex,
-                geometry: evaluationFeature.geometry,
-                properties: feature.properties,
-                type: VectorTileFeature.types[feature.type],
-                sortKey
-            };
-            this.features.push(symbolFeature);
-
-            if (icon) {
-                icons[icon.name] = true;
-            }
-
-            if (text) {
-                const fontStack = textFont.evaluate(evaluationFeature, {}, canonical).join(',');
-                const textAlongLine = layout.get('text-rotation-alignment') !== 'viewport' && layout.get('symbol-placement') !== 'point';
-                this.allowVerticalPlacement = this.writingModes?.includes(WritingMode.vertical);
-                const needsVerticalForms = ((textAlongLine && keepUpright) || this.allowVerticalPlacement) &&
-                    allowsVerticalWritingMode(text.toString());
-                this.calculateGlyphDependencies(text, stacks, fontStack, needsVerticalForms);
-
-                for (const section of text.sections) {
-                    if (section.image) icons[section.image.name] = true;
-                }
-            }
-        }
-
-        if (layout.get('symbol-placement') === 'line') {
-            // Merge adjacent lines with the same text to improve labeling.
-            // It's better to place labels on one long line than on many short segments.
-            this.features = mergeLines(this.features);
-        }
-
-        if (this.sortFeaturesByKey) {
-            this.features.sort((a, b) => {
-                // a.sortKey is always a number when sortFeaturesByKey is true
-                return (a.sortKey as number) - (b.sortKey as number);
-            });
-        }
-    }
-
     update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {[_: string]: ImagePosition}): void {
         if (!this.stateDependentLayers.length) return;
         this.text.programConfigurations.updatePaintArrays(states, vtLayer, this.layers, {
@@ -603,20 +400,6 @@ export class SymbolBucket implements Bucket {
         });
         this.icon.programConfigurations.updatePaintArrays(states, vtLayer, this.layers, {
             imagePositions
-        });
-    }
-
-    addFeatures({options, canonical, glyphMap, glyphPositions, iconMap, iconPositions, showCollisionBoxes}: BucketDependencyParameters): void {
-        performSymbolLayout({
-            bucket: this,
-            glyphMap,
-            glyphPositions,
-            imageMap: iconMap,
-            imagePositions: iconPositions,
-            showCollisionBoxes,
-            canonical,
-            subdivisionGranularity: options.subdivisionGranularity,
-            hasPromoteId: options.featureIndex.promoteId != null
         });
     }
 
@@ -1010,14 +793,6 @@ export class SymbolBucket implements Bucket {
         if (this.text.indexBuffer) this.text.indexBuffer.updateData(this.text.indexArray);
         if (this.icon.indexBuffer) this.icon.indexBuffer.updateData(this.icon.indexArray);
     }
-}
-
-/**
- * Whether every point lies outside the tile. A point label is anchored on the point itself, and
- * `addSymbolAtAnchor` in symbol_layout.ts drops an anchor outside the tile, so such a feature gets no label here.
- */
-function isEveryPointOutsideTile(geometry: Point[][]): boolean {
-    return geometry.every(ring => ring.every(isOutsideTile));
 }
 
 register('SymbolBucket', SymbolBucket, {

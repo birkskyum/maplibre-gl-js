@@ -14,6 +14,7 @@ import {SubdivisionGranularitySetting} from '../../render/subdivision_granularit
 import {createPopulateOptions, loadVectorTile} from '../../../test/unit/lib/tile.ts';
 import {createTestCamera} from '../../util/test/util.ts';
 import {SymbolBucket} from './symbol_bucket.ts';
+import {SymbolBucketBuilder} from './symbol_bucket_builder.ts';
 
 import type {BucketParameters, IndexedFeature, PopulateParameters} from '../bucket.ts';
 import type {SymbolStyleLayer} from '../../style/style_layer/symbol_style_layer.ts';
@@ -58,7 +59,7 @@ function glyphsRequestedFor(text: string, point: {x: number; y: number} = {x: 0,
         loadGeometry: () => [[point]],
     };
 
-    bucket.populate(
+    new SymbolBucketBuilder(bucket).populate(
         [{feature, id: 1, index: 0, sourceLayerIndex: 0} as unknown as IndexedFeature],
         options,
         new CanonicalTileID(0, 0, 0),
@@ -83,7 +84,7 @@ describe('SymbolBucket', () => {
         const crossTileSymbolIndex = new CrossTileSymbolIndex();
 
         // add feature from bucket A
-        bucketA.populate(features, options, undefined);
+        new SymbolBucketBuilder(bucketA).populate(features, options, undefined);
         performSymbolLayout(
             {
                 bucket: bucketA,
@@ -97,7 +98,7 @@ describe('SymbolBucket', () => {
         tileA.collisionBoxArray = collisionBoxArray;
 
         // add same feature from bucket B
-        bucketB.populate(features, options, undefined);
+        new SymbolBucketBuilder(bucketB).populate(features, options, undefined);
         performSymbolLayout({
             bucket: bucketB, glyphMap: glyphsByCluster, glyphPositions: {}, subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision
         } as any);
@@ -132,7 +133,7 @@ describe('SymbolBucket', () => {
 
         const options = {iconDependencies: {}, glyphDependencies: {}} as PopulateParameters;
 
-        bucket.populate(features, options, undefined);
+        new SymbolBucketBuilder(bucket).populate(features, options, undefined);
         const fakeGlyph = {rect: {w: 10, h: 10}, metrics: {left: 10, top: 10, advance: 10}};
         performSymbolLayout({
             bucket,
@@ -165,7 +166,7 @@ describe('SymbolBucket', () => {
         const bucket = createSymbolIconBucket('test', 'icon', collisionBoxArray);
         const options = createPopulateOptions([]);
 
-        bucket.populate(
+        new SymbolBucketBuilder(bucket).populate(
             [
                 createIndexedFeature(0, 0, 'a'),
                 createIndexedFeature(1, 1, 'b'),
@@ -208,7 +209,7 @@ describe('SymbolBucket', () => {
         const bucket = createSymbolIconBucket('test', 'icon', collisionBoxArray);
         const options = createPopulateOptions([]);
 
-        bucket.populate(
+        new SymbolBucketBuilder(bucket).populate(
             [
                 createIndexedFeature(0, 0, 'a'),
                 createIndexedFeature(1, 1, 'b'),
@@ -232,8 +233,8 @@ describe('SymbolBucket', () => {
         const rtlBucket = bucketSetup('مرحبا');
         const ltrBucket = bucketSetup('hello');
         const options = createPopulateOptions([]);
-        rtlBucket.populate(features, options, undefined);
-        ltrBucket.populate(features, options, undefined);
+        new SymbolBucketBuilder(rtlBucket).populate(features, options, undefined);
+        new SymbolBucketBuilder(ltrBucket).populate(features, options, undefined);
 
         expect(rtlBucket.hasRTLText).toBeTruthy();
         expect(ltrBucket.hasRTLText).toBeFalsy();
@@ -244,9 +245,9 @@ describe('SymbolBucket', () => {
         const hebrewBucket = bucketSetup('שלום');
         const latinBucket = bucketSetup('hello');
         const options = createPopulateOptions([]);
-        persianBucket.populate(features, options, undefined);
-        hebrewBucket.populate(features, options, undefined);
-        latinBucket.populate(features, options, undefined);
+        new SymbolBucketBuilder(persianBucket).populate(features, options, undefined);
+        new SymbolBucketBuilder(hebrewBucket).populate(features, options, undefined);
+        new SymbolBucketBuilder(latinBucket).populate(features, options, undefined);
 
         expect(persianBucket.hasCursiveText).toBe(true);
         expect(hebrewBucket.hasCursiveText).toBe(false);
@@ -260,7 +261,7 @@ describe('SymbolBucket', () => {
     test('SymbolBucket detects rtl text mixed with ltr text', () => {
         const mixedBucket = bucketSetup('مرحبا translates to hello');
         const options = createPopulateOptions([]);
-        mixedBucket.populate(features, options, undefined);
+        new SymbolBucketBuilder(mixedBucket).populate(features, options, undefined);
 
         expect(mixedBucket.hasRTLText).toBeTruthy();
     });
@@ -293,7 +294,7 @@ describe('SymbolBucket', () => {
                 'text-writing-mode': ['horizontal', 'vertical']
             });
 
-            bucket.populate([createIndexedFeature(1, 0, '')], options, canonical);
+            new SymbolBucketBuilder(bucket).populate([createIndexedFeature(1, 0, '')], options, canonical);
 
             expect(options.glyphDependencies.Test.vertical).toEqual({
                 'か\u3099': true,
@@ -311,7 +312,7 @@ describe('SymbolBucket', () => {
                 'text-keep-upright': true
             });
 
-            bucket.populate([lineFeature], options, canonical);
+            new SymbolBucketBuilder(bucket).populate([lineFeature], options, canonical);
 
             expect(options.glyphDependencies.Test.vertical).toEqual({
                 '小': true,
@@ -326,7 +327,7 @@ describe('SymbolBucket', () => {
                 'text-keep-upright': false
             });
 
-            bucket.populate([lineFeature], options, canonical);
+            new SymbolBucketBuilder(bucket).populate([lineFeature], options, canonical);
 
             expect(options.glyphDependencies.Test.vertical).toEqual({});
         });
@@ -355,7 +356,7 @@ describe('SymbolBucket', () => {
         const outside = createIndexedFeature(1, 1, 'outside');
         outside.feature.loadGeometry = () => [[new Point(8192, 100)]];
 
-        bucket.populate([inside, outside], options, new CanonicalTileID(0, 0, 0));
+        new SymbolBucketBuilder(bucket).populate([inside, outside], options, new CanonicalTileID(0, 0, 0));
 
         expect(Object.keys(options.iconDependencies)).toEqual(['inside']);
     });
@@ -371,7 +372,7 @@ describe('SymbolBucket', () => {
             loadGeometry: () => [[new Point(-100, -100), new Point(9000, -100), new Point(9000, 9000), new Point(-100, 9000), new Point(-100, -100)]],
         };
 
-        bucket.populate(
+        new SymbolBucketBuilder(bucket).populate(
             [{feature, id: 1, index: 0, sourceLayerIndex: 0} as unknown as IndexedFeature],
             options,
             new CanonicalTileID(0, 0, 0),
@@ -381,7 +382,7 @@ describe('SymbolBucket', () => {
     });
 });
 
-describe('SymbolBucket.addFeatures cross-tile key', () => {
+describe('SymbolBucketBuilder.addFeatures cross-tile key', () => {
     const symbolLayer = createSymbolStyleLayer('test', 'Test', 'abcde');
     const promoteId = 'name';
     const parentTileID = new OverscaledTileID(6, 0, 6, 8, 8);
@@ -404,8 +405,9 @@ describe('SymbolBucket.addFeatures cross-tile key', () => {
         }) as any as IndexedFeature);
         const bucket = new SymbolBucket({overscaling: 1, zoom: 0, collisionBoxArray, layers: [symbolLayer]} as BucketParameters<SymbolStyleLayer>);
         const options = {...createPopulateOptions([]), featureIndex};
-        bucket.populate(features, options, featureIndex.tileID.canonical);
-        bucket.addFeatures({
+        const builder = new SymbolBucketBuilder(bucket);
+        builder.populate(features, options, featureIndex.tileID.canonical);
+        builder.addFeatures({
             options,
             canonical: featureIndex.tileID.canonical,
             glyphMap: glyphsByCluster,

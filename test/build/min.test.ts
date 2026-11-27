@@ -27,4 +27,21 @@ describe('production bundle', () => {
         const leaked = workerMap.sources.filter(source => forbidden.some(pattern => source.includes(pattern)));
         expect(leaked).toEqual([]);
     });
+
+    test('main bundle excludes code that only builds buckets on the worker', () => {
+        const mainMap: {sources: string[]} = JSON.parse(fs.readFileSync('dist/maplibre-gl.mjs.map', 'utf8'));
+        const forbidden = [
+            '_bucket_builder.ts',
+            '/src/source/worker_tile.ts',
+            '/src/symbol/symbol_layout.ts',
+            '/src/symbol/shaping.ts',
+            '/src/symbol/bidi.ts',
+            '/src/source/rtl_text_plugin_worker.ts',
+            '/src/render/fill_large_mesh_arrays.ts',
+            '/node_modules/bidi-js/',
+            '/node_modules/earcut/',
+        ];
+        const leaked = mainMap.sources.filter(source => forbidden.some(pattern => source.includes(pattern)));
+        expect(leaked).toEqual([]);
+    });
 });

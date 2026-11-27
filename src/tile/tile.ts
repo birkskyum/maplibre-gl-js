@@ -4,6 +4,12 @@ import {GEOJSON_TILE_LAYER_NAME, type FeatureIndex, type QueryResults} from '../
 import {GeoJSONFeature} from '../util/vectortile_to_geojson.ts';
 import {featureFilter} from '@maplibre/maplibre-gl-style-spec';
 import {SymbolBucket} from '../data/bucket/symbol_bucket.ts';
+// ensure the other buckets are registered for worker transfer on main thread:
+import '../data/bucket/circle_bucket.ts';
+import '../data/bucket/fill_bucket.ts';
+import '../data/bucket/fill_extrusion_bucket.ts';
+import '../data/bucket/heatmap_bucket.ts';
+import '../data/bucket/line_bucket.ts';
 import {CollisionBoxArray} from '../data/array_types.g.ts';
 import {Texture} from '../webgl/texture.ts';
 import {now} from '../util/time_control.ts';

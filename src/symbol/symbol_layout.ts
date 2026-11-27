@@ -3,7 +3,9 @@ import ONE_EM from './one_em.ts';
 import {Anchor} from './anchor.ts';
 import {getAnchors, getCenterAnchor} from './get_anchors.ts';
 import {clipLine} from './clip_line.ts';
-import {shapeText, shapeIcon, WritingMode, fitIconToText} from './shaping.ts';
+import {shapeText, shapeIcon, fitIconToText} from './shaping.ts';
+import {WritingMode} from './writing_mode.ts';
+import {getAnchorJustification} from './anchor_alignment.ts';
 import {getGlyphQuads, getIconQuads} from './quads.ts';
 import {CollisionFeature} from './collision_feature.ts';
 import {warnOnce} from '../util/util.ts';
@@ -255,21 +257,6 @@ export function performSymbolLayout(args: {
     if (args.showCollisionBoxes) {
         args.bucket.generateCollisionDebugBuffers();
     }
-}
-
-// Choose the justification that matches the direction of the TextAnchor
-export function getAnchorJustification(anchor: TextAnchor): TextJustify {
-    switch (anchor) {
-        case 'right':
-        case 'top-right':
-        case 'bottom-right':
-            return 'right';
-        case 'left':
-        case 'top-left':
-        case 'bottom-left':
-            return 'left';
-    }
-    return 'center';
 }
 
 /**

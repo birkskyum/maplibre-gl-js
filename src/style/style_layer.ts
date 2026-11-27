@@ -3,7 +3,7 @@ import {createVisibilityExpression, featureFilter, supportsPropertyExpression} f
 import {Evented, ErrorEvent, type ErrorEventType} from '../util/evented.ts';
 import {Layout, Transitionable, type Transitioning, type Properties, PossiblyEvaluated, PossiblyEvaluatedPropertyValue, TRANSITION_SUFFIX} from './properties.ts';
 
-import type {Bucket, BucketParameters} from '../data/bucket.ts';
+import type {Bucket} from '../data/bucket.ts';
 import type Point from '@mapbox/point-geometry';
 import type {
     FeatureFilter,
@@ -104,7 +104,6 @@ export abstract class StyleLayer extends Evented<ErrorEventType> {
 
     queryRadius?(bucket: Bucket): number;
     queryIntersectsFeature?(params: QueryIntersectsFeatureParams): boolean | number;
-    createBucket?(parameters: BucketParameters<any>): Bucket;
 
     private _globalState: Record<string, any>; // reference to global state
 

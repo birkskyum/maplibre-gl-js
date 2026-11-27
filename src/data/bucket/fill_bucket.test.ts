@@ -3,6 +3,7 @@ import {type CreateBucketParameters, createPopulateOptions, getFeaturesFromLayer
 import Point from '@mapbox/point-geometry';
 import {SegmentVector} from '../segment.ts';
 import {FillBucket} from './fill_bucket.ts';
+import {FillBucketBuilder} from './fill_bucket_builder.ts';
 import {FillStyleLayer} from '../../style/style_layer/fill_style_layer.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {CanonicalTileID} from '../../tile/tile_id.ts';
@@ -78,20 +79,21 @@ describe('FillBucket', () => {
     test('FillBucket', () => {
         expect(() => {
             const bucket = createFillBucket({id: 'test', layout: {}});
+            const builder = new FillBucketBuilder(bucket);
 
-            bucket.addFeature({} as BucketFeature, [[
+            builder.addFeature({} as BucketFeature, [[
                 new Point(0, 0),
                 new Point(10, 10)
             ]], undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
 
-            bucket.addFeature({} as BucketFeature, [[
+            builder.addFeature({} as BucketFeature, [[
                 new Point(0, 0),
                 new Point(10, 10),
                 new Point(10, 20)
             ]], undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
 
             const feature = sourceLayer.feature(0);
-            bucket.addFeature(feature as any, feature.loadGeometry(), undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
+            builder.addFeature(feature as any, feature.loadGeometry(), undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
         }).not.toThrow();
     });
 
@@ -103,13 +105,14 @@ describe('FillBucket', () => {
         const bucket = createFillBucket({id: 'test', layout: {}, paint: {
             'fill-color': ['to-color', ['get', 'foo'], '#000']
         }});
+        const builder = new FillBucketBuilder(bucket);
 
         // first add an initial, small feature to make sure the next one starts at
         // a non-zero offset
-        bucket.addFeature({} as BucketFeature, [createPolygon(10)], undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
+        builder.addFeature({} as BucketFeature, [createPolygon(10)], undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
 
         // add a feature that will break across the group boundary
-        bucket.addFeature({} as BucketFeature, [
+        builder.addFeature({} as BucketFeature, [
             createPolygon(128),
             createPolygon(128)
         ], undefined, canonicalTileID, undefined, SubdivisionGranularitySetting.noSubdivision);
@@ -141,11 +144,12 @@ describe('FillBucket', () => {
         const bucket = createFillBucket({id: 'test', paint: {
             'fill-pattern': ['coalesce', ['get', 'pattern'], ['global-state', 'pattern']]
         }, globalState: {pattern: 'test-pattern'}, availableImages});
+        const builder = new FillBucketBuilder(bucket);
 
-        bucket.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
+        builder.populate(getFeaturesFromLayer(sourceLayer), createPopulateOptions(availableImages), undefined);
 
-        expect(bucket.patternFeatures.length).toBeGreaterThan(0);
-        expect(bucket.patternFeatures[0].patterns).toEqual({
+        expect(builder.patternFeatures.length).toBeGreaterThan(0);
+        expect(builder.patternFeatures[0].patterns).toEqual({
             test: {min: 'test-pattern', mid: 'test-pattern', max: 'test-pattern'}
         });
     });
@@ -156,9 +160,10 @@ describe('FillBucket', () => {
             {id: 'sdf-layer', type: 'fill', paint: {'fill-pattern': 'sdf-pattern'}},
             {id: 'rgba-layer', type: 'fill', paint: {'fill-pattern': 'rgba-pattern'}}
         ] as LayerSpecification[], availableImages);
+        const builder = new FillBucketBuilder(bucket);
         const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        bucket.addFeatures(createDependencyParameters({
+        builder.addFeatures(createDependencyParameters({
             'sdf-pattern': {sdf: true} as StyleImage,
             'rgba-pattern': {sdf: false} as StyleImage
         }));
@@ -178,10 +183,11 @@ describe('FillBucket', () => {
             paint: {'fill-pattern': ['step', ['zoom'], ['get', 'a'], 0.5, ['get', 'b']]},
             availableImages
         });
-        bucket.populate([{feature: createPatternFeature('sdf-pattern', 'rgba-pattern'), id: 0, index: 0, sourceLayerIndex: 0}], createPopulateOptions(availableImages), undefined);
+        const builder = new FillBucketBuilder(bucket);
+        builder.populate([{feature: createPatternFeature('sdf-pattern', 'rgba-pattern'), id: 0, index: 0, sourceLayerIndex: 0}], createPopulateOptions(availableImages), undefined);
         const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        bucket.addFeatures(createDependencyParameters({
+        builder.addFeatures(createDependencyParameters({
             'sdf-pattern': {sdf: true} as StyleImage,
             'rgba-pattern': {sdf: false} as StyleImage
         }));
@@ -198,10 +204,11 @@ describe('FillBucket', () => {
             paint: {'fill-pattern': ['step', ['zoom'], 'rgba-pattern', 1, 'sdf-pattern']},
             availableImages
         });
+        const builder = new FillBucketBuilder(bucket);
         bucket.layers[0].recalculate({zoom: 0.5, zoomHistory: {} as ZoomHistory} as EvaluationParameters, availableImages);
         const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        bucket.addFeatures(createDependencyParameters({
+        builder.addFeatures(createDependencyParameters({
             'sdf-pattern': {sdf: true} as StyleImage,
             'rgba-pattern': {sdf: false} as StyleImage
         }));

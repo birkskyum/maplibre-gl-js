@@ -1,5 +1,4 @@
 import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
-import {HeatmapBucket} from '../../data/bucket/heatmap_bucket.ts';
 import properties, {type HeatmapPaintPropsPossiblyEvaluated} from './heatmap_style_layer_properties.g.ts';
 import {renderColorRamp} from '../../util/color_ramp.ts';
 import {circleIntersection, getMaximumPaintValue} from '../query_utils.ts';
@@ -11,6 +10,7 @@ import type {Framebuffer} from '../../webgl/framebuffer.ts';
 import type {HeatmapPaintProps} from './heatmap_style_layer_properties.g.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {Bucket} from '../../data/bucket.ts';
+import type {HeatmapBucket} from '../../data/bucket/heatmap_bucket.ts';
 
 export const HEATMAP_FULL_RENDER_FBO_KEY = 'big-fb';
 
@@ -28,10 +28,6 @@ export class HeatmapStyleLayer extends StyleLayer {
     _transitionablePaint: Transitionable<HeatmapPaintProps>;
     _transitioningPaint: Transitioning<HeatmapPaintProps>;
     paint: PossiblyEvaluated<HeatmapPaintProps, HeatmapPaintPropsPossiblyEvaluated>;
-
-    createBucket(options: any): HeatmapBucket {
-        return new HeatmapBucket(options);
-    }
 
     constructor(layer: LayerSpecification, globalState: Record<string, any>) {
         super(layer, properties, globalState);

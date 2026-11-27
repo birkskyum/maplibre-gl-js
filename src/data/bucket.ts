@@ -96,7 +96,7 @@ export type BucketFeature = {
  * tiles into WebGL buffers.
  *
  * `Bucket` is an abstract interface. An implementation exists for each style layer type.
- * Create a bucket via the `StyleLayer.createBucket` method.
+ * `createBucketBuilder` creates a bucket together with the {@link BucketBuilder} that fills it.
  *
  * The concrete bucket types, using layout options from the style layer,
  * transform feature geometries into vertex and index data for use by the
@@ -114,12 +114,9 @@ export type BucketFeature = {
  */
 export interface Bucket {
     layerIds: string[];
-    hasDependencies: boolean;
     readonly layers: any[];
     readonly stateDependentLayers: any[];
     readonly stateDependentLayerIds: string[];
-    populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
-    addFeatures(parameters: BucketDependencyParameters): void;
     update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {[_: string]: ImagePosition}, dashPositions: Record<string, DashEntry>): void;
     isEmpty(): boolean;
     upload(context: Context): void;
@@ -130,6 +127,24 @@ export interface Bucket {
      * must be destroyed in groups (all buckets for a tile, or all symbol buckets).
      */
     destroy(): void;
+}
+
+/**
+ * @hidden
+ * Builds a {@link Bucket} from the features of a vector tile, on a worker thread.
+ */
+export interface BucketBuilder {
+    /**
+     * The bucket being built, which is transferred to the main thread once it holds its features.
+     */
+    readonly bucket: Bucket;
+    /**
+     * Whether {@link BucketBuilder.addFeatures} has to run once the glyphs, images and dashes that
+     * {@link BucketBuilder.populate} asked for have arrived.
+     */
+    hasDependencies: boolean;
+    populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
+    addFeatures(parameters: BucketDependencyParameters): void;
 }
 
 export function deserialize(input: Bucket[], style: Style): {[_: string]: Bucket} {

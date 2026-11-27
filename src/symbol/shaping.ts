@@ -18,21 +18,16 @@ import {TaggedString, type SectionOptions, type TextSectionOptions, type ImageSe
 import {GLYPH_PBF_BORDER} from '../style/parse_glyph_pbf.ts';
 import {TextFit} from '../style/style_image.ts';
 import {IMAGE_PADDING} from '../render/image_atlas.ts';
+import {WritingMode} from './writing_mode.ts';
+import {getAnchorAlignment} from './anchor_alignment.ts';
 
 import type {ImagePosition} from '../render/image_atlas.ts';
 import type {StyleGlyph, GlyphMap, GlyphMetrics} from '../style/style_glyph.ts';
 import type {Rect, GlyphPosition, GlyphPositions} from '../render/glyph_atlas.ts';
 import type {Formatted, VerticalAlign} from '@maplibre/maplibre-gl-style-spec';
 
-enum WritingMode {
-    none = 0,
-    horizontal = 1,
-    vertical = 2,
-    horizontalOnly = 3
-}
-
 const SHAPING_DEFAULT_OFFSET = -17;
-export {shapeText, shapeIcon, applyTextFit, fitIconToText, getAnchorAlignment, mayUseVerticalGlyph, WritingMode, SHAPING_DEFAULT_OFFSET};
+export {shapeText, shapeIcon, applyTextFit, fitIconToText, mayUseVerticalGlyph, SHAPING_DEFAULT_OFFSET};
 
 // The position of a glyph relative to the text's anchor point.
 export type PositionedGlyph = {
@@ -299,38 +294,6 @@ function shapeText(
     if (isEmpty(positionedLines)) return false;
 
     return shaping;
-}
-
-function getAnchorAlignment(anchor: SymbolAnchor): {horizontalAlign: number; verticalAlign: number} {
-    let horizontalAlign = 0.5, verticalAlign = 0.5;
-
-    switch (anchor) {
-        case 'right':
-        case 'top-right':
-        case 'bottom-right':
-            horizontalAlign = 1;
-            break;
-        case 'left':
-        case 'top-left':
-        case 'bottom-left':
-            horizontalAlign = 0;
-            break;
-    }
-
-    switch (anchor) {
-        case 'bottom':
-        case 'bottom-right':
-        case 'bottom-left':
-            verticalAlign = 1;
-            break;
-        case 'top':
-        case 'top-right':
-        case 'top-left':
-            verticalAlign = 0;
-            break;
-    }
-
-    return {horizontalAlign, verticalAlign};
 }
 
 function calculateLineContentSize(

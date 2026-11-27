@@ -1,5 +1,4 @@
 import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
-import {FillExtrusionBucket} from '../../data/bucket/fill_extrusion_bucket.ts';
 import {polygonIntersectsPolygon, polygonIntersectsMultiPolygon} from '../../util/intersection_tests.ts';
 import {translateDistance, translate} from '../query_utils.ts';
 import properties, {type FillExtrusionLayoutPropsPossiblyEvaluated, type FillExtrusionPaintPropsPossiblyEvaluated} from './fill_extrusion_style_layer_properties.g.ts';
@@ -8,7 +7,6 @@ import {getCameraMath} from '../../camera/camera_math_factory.ts';
 
 import type {Layout, Transitionable, Transitioning, PossiblyEvaluated} from '../properties.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {BucketParameters} from '../../data/bucket.ts';
 import type {FillExtrusionLayoutProps, FillExtrusionPaintProps} from './fill_extrusion_style_layer_properties.g.ts';
 import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 import type {UnwrappedTileID} from '../../tile/tile_id.ts';
@@ -29,10 +27,6 @@ export class FillExtrusionStyleLayer extends StyleLayer {
 
     constructor(layer: LayerSpecification, globalState: Record<string, any>) {
         super(layer, properties, globalState);
-    }
-
-    createBucket(parameters: BucketParameters<FillExtrusionStyleLayer>): FillExtrusionBucket {
-        return new FillExtrusionBucket(parameters);
     }
 
     queryRadius(): number {

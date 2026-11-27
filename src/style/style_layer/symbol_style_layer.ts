@@ -1,5 +1,4 @@
 import {StyleLayer} from '../style_layer.ts';
-import {SymbolBucket, type SymbolFeature} from '../../data/bucket/symbol_bucket.ts';
 import {resolveTokens} from '../../util/resolve_tokens.ts';
 import properties, {type SymbolLayoutPropsPossiblyEvaluated, type SymbolPaintPropsPossiblyEvaluated} from './symbol_style_layer_properties.g.ts';
 import {
@@ -22,7 +21,7 @@ import {
     Literal} from '@maplibre/maplibre-gl-style-spec';
 import {FormatSectionOverride} from '../format_section_override.ts';
 
-import type {BucketParameters} from '../../data/bucket.ts';
+import type {SymbolFeature} from '../../data/bucket/symbol_bucket.ts';
 import type {SymbolLayoutProps, SymbolPaintProps} from './symbol_style_layer_properties.g.ts';
 import type {EvaluationParameters} from '../evaluation_parameters.ts';
 import type {Expression, Feature, SourceExpression, LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
@@ -94,10 +93,6 @@ export class SymbolStyleLayer extends StyleLayer {
         }
 
         return value;
-    }
-
-    createBucket(parameters: BucketParameters<any>): SymbolBucket {
-        return new SymbolBucket(parameters);
     }
 
     queryRadius(): number {

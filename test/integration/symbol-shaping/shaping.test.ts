@@ -1,7 +1,8 @@
 import {describe, test, expect} from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import {WritingMode, shapeText, type Shaping} from '../../../src/symbol/shaping.ts';
+import {shapeText, type Shaping} from '../../../src/symbol/shaping.ts';
+import {WritingMode} from '../../../src/symbol/writing_mode.ts';
 import {ResolvedImage, Formatted, FormattedSection, type VerticalAlign} from '@maplibre/maplibre-gl-style-spec';
 import {ImagePosition} from '../../../src/render/image_atlas.ts';
 import glyphsJson from '../assets/glyphs/fontstack-glyphs.json' with {type: 'json'};

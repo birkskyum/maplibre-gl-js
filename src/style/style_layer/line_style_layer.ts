@@ -1,5 +1,4 @@
 import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
-import {LineBucket} from '../../data/bucket/line_bucket.ts';
 import {polygonIntersectsBufferedMultiLine} from '../../util/intersection_tests.ts';
 import {getMaximumPaintValue, translateDistance, translate, offsetLine} from '../query_utils.ts';
 import properties, {type LineLayoutPropsPossiblyEvaluated, type LinePaintPropsPossiblyEvaluated} from './line_style_layer_properties.g.ts';
@@ -8,7 +7,8 @@ import {type Transitionable, type Transitioning, type Layout, type PossiblyEvalu
 import {isZoomExpression, Step, type Feature, type FeatureState, type StylePropertyExpression} from '@maplibre/maplibre-gl-style-spec';
 
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {Bucket, BucketParameters} from '../../data/bucket.ts';
+import type {Bucket} from '../../data/bucket.ts';
+import type {LineBucket} from '../../data/bucket/line_bucket.ts';
 import type {LineLayoutProps, LinePaintProps} from './line_style_layer_properties.g.ts';
 
 export class LineFloorwidthProperty extends DataDrivenProperty<number> {
@@ -75,10 +75,6 @@ export class LineStyleLayer extends StyleLayer {
         super.recalculate(parameters, availableImages);
         (this.paint._values as any)['line-floorwidth'] =
             lineFloorwidthProperty.possiblyEvaluate(this._transitioningPaint._values['line-width'].value, parameters);
-    }
-
-    createBucket(parameters: BucketParameters<any>): LineBucket {
-        return new LineBucket(parameters);
     }
 
     queryRadius(bucket: Bucket): number {

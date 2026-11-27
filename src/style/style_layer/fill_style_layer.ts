@@ -1,12 +1,10 @@
 import {type QueryIntersectsFeatureParams, StyleLayer} from '../style_layer.ts';
-import {FillBucket} from '../../data/bucket/fill_bucket.ts';
 import {polygonIntersectsMultiPolygon} from '../../util/intersection_tests.ts';
 import {translateDistance, translate} from '../query_utils.ts';
 import properties, {type FillLayoutPropsPossiblyEvaluated, type FillPaintPropsPossiblyEvaluated} from './fill_style_layer_properties.g.ts';
 
 import type {Transitionable, Transitioning, Layout, PossiblyEvaluated} from '../properties.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {BucketParameters} from '../../data/bucket.ts';
 import type {FillLayoutProps, FillPaintProps} from './fill_style_layer_properties.g.ts';
 import type {EvaluationParameters} from '../evaluation_parameters.ts';
 
@@ -31,10 +29,6 @@ export class FillStyleLayer extends StyleLayer {
         if (outlineColor.value.kind === 'constant' && outlineColor.value.value === undefined) {
             this.paint._values['fill-outline-color'] = this.paint._values['fill-color'];
         }
-    }
-
-    createBucket(parameters: BucketParameters<any>): FillBucket {
-        return new FillBucket(parameters);
     }
 
     queryRadius(): number {

@@ -1,6 +1,7 @@
 import {afterEach, describe, test, expect} from 'vitest';
 import {toGraphemes} from '../util/graphemes.ts';
-import {type PositionedIcon, type Box, type Shaping, applyTextFit, shapeIcon, fitIconToText, shapeText, WritingMode} from './shaping.ts';
+import {type PositionedIcon, type Box, type Shaping, applyTextFit, shapeIcon, fitIconToText, shapeText} from './shaping.ts';
+import {WritingMode} from './writing_mode.ts';
 import {ImagePosition} from '../render/image_atlas.ts';
 import {type StyleImage, TextFit} from '../style/style_image.ts';
 import {Formatted, FormattedSection} from '@maplibre/maplibre-gl-style-spec';

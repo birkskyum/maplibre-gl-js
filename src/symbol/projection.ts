@@ -4,7 +4,7 @@ import {getSymbolElevation} from './symbol_elevation.ts';
 import * as symbolSize from './symbol_size.ts';
 import {addDynamicAttributes} from '../data/bucket/symbol_bucket.ts';
 import {fastInvertSkewMat4, xyTransformMat4} from '../util/fast_maths.ts';
-import {WritingMode} from '../symbol/shaping.ts';
+import {WritingMode} from '../symbol/writing_mode.ts';
 import {findLineIntersection} from '../util/util.ts';
 import {getCameraMath} from '../camera/camera_math_factory.ts';
 
