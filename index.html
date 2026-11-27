@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Terrain on vertical-perspective</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario"></select>
+    <button id="reset">Reset both</button>
+    Left: 6.20.0. Right: this PR. Both in vertical-perspective with terrain.
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.mjs';
+    import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@44646168d0765bcf87e26bbcd05515b8eda66813/maplibre-gl.mjs';
+
+    const scenarios = {
+        'Alps': {center: [8.2, 46.6], zoom: 8, pitch: 55, bearing: 0},
+        'Himalaya': {center: [86.9, 28.2], zoom: 7.5, pitch: 60, bearing: 20},
+        'Grand Canyon': {center: [-112.1, 36.1], zoom: 9.5, pitch: 60, bearing: -30},
+    };
+    const select = document.getElementById('scenario');
+    for (const name of Object.keys(scenarios)) select.add(new Option(name, name));
+
+    const style = await (await fetch('https://tiles.openfreemap.org/styles/liberty')).json();
+    style.projection = {type: 'vertical-perspective'};
+    style.sources.satellite = {
+        type: 'raster',
+        tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg'],
+        tileSize: 256,
+        maxzoom: 15,
+        attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX'
+    };
+    style.sources.terrain = {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'};
+    style.terrain = {source: 'terrain', exaggeration: 1};
+    style.layers = [
+        {id: 'satellite', type: 'raster', source: 'satellite'},
+        ...style.layers.filter((layer) => layer.type === 'symbol' || layer.id.startsWith('boundary'))
+    ];
+
+    const maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => new maplibregl.Map({
+        container,
+        style,
+        maxPitch: 85,
+        ...scenarios[select.value]
+    }));
+    let syncing = false;
+    for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
+        from.on('move', () => {
+            if (syncing) return;
+            syncing = true;
+            to.jumpTo({center: from.getCenter(), zoom: from.getZoom(), bearing: from.getBearing(), pitch: from.getPitch()});
+            syncing = false;
+        });
+    }
+    window.maps = maps;
+
+    function reset() {
+        for (const map of maps) map.jumpTo(scenarios[select.value]);
+    }
+    select.addEventListener('change', reset);
+    document.getElementById('reset').addEventListener('click', reset);
+</script>
+</body>
+</html>
