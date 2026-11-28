@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Terrain fog with layers above a symbol layer</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.css">
     <style>
         html, body { margin: 0; height: 100%; }
         body { display: flex; flex-direction: column; font: 13px sans-serif; }
@@ -18,17 +18,18 @@
     <select id="scenario">
         <option value="6">Six GeoJSON layers added on top</option>
         <option value="0">Satellite, labels and hillshade only</option>
+        <option value="single">Single group (hillshade below labels)</option>
     </select>
     <button id="reset">Reset both</button>
-    Left: 6.19.0. Right: this PR. Look at the mountains near the horizon.
+    Left: 6.20.0. Right: this PR. Look at the mountains near the horizon.
 </div>
 <div id="maps">
     <div id="before"></div>
     <div id="after"></div>
 </div>
 <script type="module">
-    import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.19.0/dist/maplibre-gl.mjs';
-    import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@0001712653473fc1d11188a6e829998b8e21a4f4/maplibre-gl.mjs';
+    import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.mjs';
+    import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@a90eef80ce86f7f6ea95b25738ad7800473057fb/maplibre-gl.mjs';
 
     const center = [7.6586, 45.9763];
     const start = {center, zoom: 12, pitch: 75, bearing: 0};
@@ -48,6 +49,12 @@
             if (map.getLayer(`overlay-${i}`)) map.removeLayer(`overlay-${i}`);
             if (map.getSource(`overlay-${i}`)) map.removeSource(`overlay-${i}`);
         }
+        const firstSymbol = map.getStyle().layers.find(layer => layer.type === 'symbol')?.id;
+        if (select.value === 'single') {
+            map.moveLayer('hills', firstSymbol);
+            return;
+        }
+        map.moveLayer('hills');
         for (let i = 0; i < Number(select.value); i++) {
             map.addSource(`overlay-${i}`, {type: 'geojson', data: square(i)});
             map.addLayer({id: `overlay-${i}`, type: 'fill', source: `overlay-${i}`, paint: {'fill-color': '#e33', 'fill-opacity': 0.5}});
