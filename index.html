@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Sky horizon at high zoom</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.css">
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font: 13px sans-serif; }
+        #bar { padding: 4px; }
+        #maps { flex: 1; display: flex; gap: 2px; }
+        #maps > div { flex: 1; }
+    </style>
+</head>
+<body>
+<div id="bar">
+    <select id="scenario">
+        <option value="skyBand">Zoom 20 sky horizon band</option>
+        <option value="harborTerrain">Zoom 20 with terrain and fog</option>
+        <option value="roll">Zoom 20 rolled camera</option>
+    </select>
+    <button id="reset">Reset both</button>
+    Left: 6.20.0. Right: with the fix.
+</div>
+<div id="maps">
+    <div id="before"></div>
+    <div id="after"></div>
+</div>
+<script type="module">
+    import * as before from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.20.0/dist/maplibre-gl.mjs';
+    import * as after from 'https://cdn.jsdelivr.net/gh/birkskyum/maplibre-gl-js@75c7b70bc3f8fbe7483e7e068f7a6477b1c6aca0/maplibre-gl.mjs';
+
+    const daylightSky = {
+        'sky-color': '#199EF3',
+        'sky-horizon-blend': 0.15,
+        'horizon-color': '#ffffff',
+        'horizon-fog-blend': 0.5,
+        'fog-color': '#ffffff',
+        'fog-ground-blend': 1
+    };
+
+    const warmSky = {
+        'sky-color': '#5c7fa8',
+        'sky-horizon-blend': 0.25,
+        'horizon-color': '#f0d8c0',
+        'horizon-fog-blend': 0.5,
+        'fog-color': '#e8d4c4',
+        'fog-ground-blend': 0.15
+    };
+
+    const scenarios = {
+        skyBand: {center: [-74.03, 40.68], zoom: 20, pitch: 81.5, bearing: 180, roll: 0, sky: daylightSky, terrain: false},
+        harborTerrain: {center: [-74.03, 40.68], zoom: 20, pitch: 83, bearing: 180, roll: 0, sky: warmSky, terrain: true},
+        roll: {center: [-74.03, 40.68], zoom: 20, pitch: 83, bearing: 180, roll: -30, sky: warmSky, terrain: true}
+    };
+
+    const select = document.getElementById('scenario');
+    let maps = [];
+
+    function load() {
+        for (const map of maps) map.remove();
+        const cfg = scenarios[select.value];
+        maps = [[before, 'before'], [after, 'after']].map(([maplibregl, container]) => {
+            const map = new maplibregl.Map({
+                container,
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: cfg.center,
+                zoom: cfg.zoom,
+                pitch: cfg.pitch,
+                bearing: cfg.bearing,
+                roll: cfg.roll,
+                maxPitch: 95
+            });
+            map.on('style.load', () => {
+                map.setSky(cfg.sky);
+                if (cfg.terrain) {
+                    map.addSource('dem', {type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json'});
+                    map.setTerrain({source: 'dem', exaggeration: 1});
+                }
+            });
+            return map;
+        });
+
+        let syncing = false;
+        for (const [from, to] of [[maps[0], maps[1]], [maps[1], maps[0]]]) {
+            from.on('move', () => {
+                if (syncing) return;
+                syncing = true;
+                to.jumpTo({
+                    center: from.getCenter(),
+                    zoom: from.getZoom(),
+                    bearing: from.getBearing(),
+                    pitch: from.getPitch(),
+                    roll: from.getRoll()
+                });
+                syncing = false;
+            });
+        }
+        window.maps = maps;
+    }
+
+    select.addEventListener('change', load);
+    document.getElementById('reset').addEventListener('click', () => {
+        const cfg = scenarios[select.value];
+        for (const map of maps) map.jumpTo({center: cfg.center, zoom: cfg.zoom, pitch: cfg.pitch, bearing: cfg.bearing, roll: cfg.roll});
+    });
+    load();
+</script>
+</body>
+</html>
